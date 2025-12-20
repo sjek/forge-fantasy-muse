@@ -277,16 +277,12 @@ nearby.players[1]:sendEvent('MyMod_ShowNotification', {
     code: `eventHandlers = {
   MyMod_AreaEffect = function(data)
     local types = require('openmw.types')
-    local effects = types.Actor.activeEffects(self)
+    local self = require('openmw.self')
+    local effects = types.Actor.activeEffects(self.object)
     
-    -- Check for shield spell
-    local hasShield = false
-    for _, effect in pairs(effects) do
-      if effect.id == 'shield' then
-        hasShield = true
-        break
-      end
-    end
+    -- Check for shield spell using getEffect
+    local shieldEffect = effects:getEffect('shield')
+    local hasShield = shieldEffect ~= nil
     
     if hasShield then
       data.damage = data.damage * 0.5  -- Reduce damage
@@ -294,7 +290,7 @@ nearby.players[1]:sendEvent('MyMod_ShowNotification', {
     
     -- Apply remaining damage
     if data.damage > 0 then
-      local health = types.Actor.stats.dynamic.health(self)
+      local health = types.Actor.stats.dynamic.health(self.object)
       health.current = health.current - data.damage
     end
     
@@ -500,15 +496,18 @@ local function onLoad(data) if data then activeEffects = data.effects end end
 
 -- Check active effects each frame
 local function onUpdate(dt)
-  local effects = types.Actor.activeEffects(self)
-  for _, effect in pairs(effects) do
-    if effect.id == 'fortifymagicka' then
-      -- Custom amplification when fortified
-      if not activeEffects.amplified then
-        activeEffects.amplified = true
-        core.sendGlobalEvent('MagicMod_Amplified', { actor = self.object })
-      end
+  local effects = types.Actor.activeEffects(self.object)
+  
+  -- Use getEffect to check for specific effect
+  local fortifyEffect = effects:getEffect('fortifymagicka')
+  if fortifyEffect then
+    -- Custom amplification when fortified
+    if not activeEffects.amplified then
+      activeEffects.amplified = true
+      core.sendGlobalEvent('MagicMod_Amplified', { actor = self.object })
     end
+  else
+    activeEffects.amplified = false
   end
 end
 
@@ -534,8 +533,8 @@ return {
     MagicMod_Amplified = function(data)
       -- Create visual effect at actor location
       local pos = data.actor.position
-      -- Notify nearby actors of magic surge
-      for _, actor in pairs(world.actors) do
+      -- Notify nearby actors of magic surge using world.activeActors
+      for _, actor in ipairs(world.activeActors) do
         if (actor.position - pos):length() < 1000 then
           actor:sendEvent('MagicMod_MagicSurge', { power = 2.0 })
         end
@@ -810,13 +809,23 @@ local RECIPES = {
   }
 }
 
+local function countItem(inv, recordId)
+  local count = 0
+  for _, item in ipairs(inv:getAll()) do
+    if item.recordId == recordId then
+      count = count + 1
+    end
+  end
+  return count
+end
+
 local function canCraft(player, recipeId)
   local recipe = RECIPES[recipeId]
   if not recipe then return false end
   
   local inv = types.Actor.inventory(player)
-  for item, count in pairs(recipe.ingredients) do
-    if inv:countOf(item) < count then
+  for itemId, needed in pairs(recipe.ingredients) do
+    if countItem(inv, itemId) < needed then
       return false
     end
   end
@@ -847,9 +856,15 @@ return {
       local recipe = RECIPES[data.recipeId]
       local inv = types.Actor.inventory(data.player)
       
-      -- Remove ingredients
-      for item, count in pairs(recipe.ingredients) do
-        inv:remove(item, count)
+      -- Remove ingredients by finding and removing items
+      for itemId, needed in pairs(recipe.ingredients) do
+        local removed = 0
+        for _, item in ipairs(inv:getAll()) do
+          if item.recordId == itemId and removed < needed then
+            item:remove()
+            removed = removed + 1
+          end
+        end
       end
       
       -- Request global script to create item
@@ -871,10 +886,24 @@ local types = require('openmw.types')
 return {
   eventHandlers = {
     CraftMod_CreateItem = function(data)
+      -- Create item and move it into player inventory
       local item = world.createObject(data.itemId, 1)
-      types.Actor.inventory(data.player):addItem(item)
+      item:moveInto(types.Actor.inventory(data.player))
+      
+      -- Get item name from correct type record
+      local itemName = data.itemId  -- Fallback
+      if item.type == types.Weapon then
+        itemName = types.Weapon.record(item).name
+      elseif item.type == types.Armor then
+        itemName = types.Armor.record(item).name
+      elseif item.type == types.Clothing then
+        itemName = types.Clothing.record(item).name
+      elseif item.type == types.Potion then
+        itemName = types.Potion.record(item).name
+      end
+      
       data.player:sendEvent('CraftMod_CraftSuccess', {
-        itemName = types.Item.record(item).name
+        itemName = itemName
       })
     end,
   },
@@ -912,16 +941,17 @@ local ARTIFACT_ID = 'daedric_soul_blade'
 local chargeState = { current = 100, max = 100 }
 
 local function isEquipped()
-  local weapon = types.Actor.getEquipment(self, types.Equipment.SLOT_CarriedRight)
-  return weapon and types.Item.record(weapon).id == ARTIFACT_ID
+  local equipment = types.Actor.getEquipment(self.object)
+  local weapon = equipment[types.Actor.EQUIPMENT_SLOT.CarriedRight]
+  return weapon and weapon.recordId == ARTIFACT_ID
 end
 
 -- Passive effect while equipped
 local passiveCheck = time.runRepeatedly(function()
   if not isEquipped() then return end
   
-  -- Drain nearby enemies
-  for _, actor in pairs(nearby.actors) do
+  -- Drain nearby enemies using ipairs for nearby.actors list
+  for _, actor in ipairs(nearby.actors) do
     if actor ~= self.object then
       local dist = (actor.position - self.object.position):length()
       if dist < 500 then
@@ -942,7 +972,7 @@ return {
   },
   eventHandlers = {
     ArtifactMod_SoulDrain = function(data)
-      local health = types.Actor.stats.dynamic.health(self)
+      local health = types.Actor.stats.dynamic.health(self.object)
       health.current = math.max(1, health.current - data.amount)
     end,
   },
@@ -1094,17 +1124,55 @@ Your responses must be valid JSON with this exact structure:
   "tags": ["tag1", "tag2"]
 }
 
-## Core Modules:
-- require('openmw.core') - Game time, magic, factions, dialogue, events
-- require('openmw.types') - Actor, NPC, Item, Weapon, Armor, Container types
-- require('openmw.world') - Object creation, cell access (GLOBAL scripts only)
-- require('openmw.self') - Self reference (LOCAL scripts only)
-- require('openmw.nearby') - Nearby objects (LOCAL scripts only)
-- require('openmw.ui') - UI creation (PLAYER scripts only)
-- require('openmw.input') - Key bindings (PLAYER scripts only)
-- require('openmw.async') - Timers and callbacks
-- require('openmw.interfaces') - Built-in interfaces (AI, Combat, Camera, Controls)
-- require('openmw_aux.time') - Repeating timer helpers
+## Core Modules & Documented APIs:
+
+### openmw.types (Actor/NPC/Item access)
+- types.Actor.inventory(actor) → Inventory object with :getAll(), :getAll(type), :find(recordId)
+- types.Actor.stats.dynamic.health/magicka/fatigue(actor) → { current, base } (writable)
+- types.Actor.stats.attributes.strength/intelligence/etc(actor) → stat object
+- types.Actor.activeEffects(actor) → ActiveEffects with :getEffect(effectId) method
+- types.Actor.getEquipment(actor) → table keyed by types.Actor.EQUIPMENT_SLOT.*
+- types.Actor.EQUIPMENT_SLOT.CarriedRight/CarriedLeft/Cuirass/etc - equipment slot constants
+- types.Weapon.record(obj), types.Armor.record(obj), types.NPC.record(obj) - get record data
+- types.Player, types.NPC, types.Creature - type checking constants
+
+### openmw.world (GLOBAL scripts only)
+- world.createObject(recordId, count) → GameObject (must then :moveInto or :teleport)
+- world.activeActors → list of active actors (iterate with ipairs)
+- world.players → list of players
+- world.getCellByName(name), world.getExteriorCell(x, y) → Cell access
+
+### openmw.self (LOCAL scripts only)
+- self.object → the GameObject this script is attached to
+- self.object.position, self.object.rotation, self.object.cell
+
+### openmw.nearby (LOCAL scripts only)
+- nearby.actors → ObjectList (iterate with ipairs, NOT pairs)
+- nearby.players → ObjectList
+- nearby.items, nearby.containers, nearby.doors
+
+### Inventory Operations:
+- inv:getAll() → all items, inv:getAll(types.Weapon) → weapons only
+- item:moveInto(inventory) → move item to inventory
+- item:remove() → destroy item
+- To count items: iterate inv:getAll() and count matching recordIds
+
+### openmw.async (Timers)
+- async:registerTimerCallback(name, func) → callback (register at script load)
+- async:newSimulationTimer(seconds, callback, data) → game-time timer
+- async:newGameTimer(seconds, callback, data) → real-time timer
+- async:newUnsavableGameTimer(seconds, callback, data) → non-persistent timer
+
+### openmw_aux.time (Repeating timers)
+- time.runRepeatedly(func, interval, options) → returns stop function
+- time.hour, time.day, time.second - time constants
+- { type = time.GameTime } or { type = time.SimulationTime }
+
+### openmw.interfaces (Built-in interfaces)
+- I.AI.startPackage({type='Travel', destPosition=vec3})
+- I.Combat.isInCombat(actor)
+- I.Controls.overrideMovementInput(enabled)
+- I.Camera.setMode(mode), I.Activation.addHandler(func)
 
 ${scriptContextRef}
 ${interfaceRef}
