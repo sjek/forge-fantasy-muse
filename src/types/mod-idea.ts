@@ -12,7 +12,36 @@ export type ThemeTag =
   | 'necromancy'
   | 'alchemy'
   | 'guilds'
-  | 'artifacts';
+  | 'artifacts'
+  // UI & HUD
+  | 'ui'
+  | 'hud'
+  | 'menus'
+  // Sound & Ambience
+  | 'sounds'
+  | 'ambience'
+  | 'music'
+  // VFX & Animation
+  | 'vfx'
+  | 'animation'
+  // World & Environment
+  | 'weather'
+  | 'terrain'
+  | 'world'
+  // Camera & Controls
+  | 'camera'
+  | 'controls'
+  // Storage & Data
+  | 'data'
+  | 'storage'
+  | 'settings'
+  // Stealth & Sneaking
+  | 'stealth'
+  | 'sneaking'
+  // Dialogue & Books
+  | 'dialogue'
+  | 'books'
+  | 'lore';
 
 export type Complexity = 'simple' | 'quest-mod' | 'overhaul';
 
