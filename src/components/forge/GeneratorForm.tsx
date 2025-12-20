@@ -17,6 +17,7 @@ const GAME_TYPES: { value: GameType; label: string }[] = [
 ];
 
 const THEME_TAGS: { value: ThemeTag; label: string; icon: string }[] = [
+  // Core themes
   { value: 'magic', label: 'Magic', icon: '✨' },
   { value: 'kingdoms', label: 'Kingdoms', icon: '🏰' },
   { value: 'dragons', label: 'Dragons', icon: '🐉' },
@@ -29,6 +30,35 @@ const THEME_TAGS: { value: ThemeTag; label: string; icon: string }[] = [
   { value: 'alchemy', label: 'Alchemy', icon: '⚗️' },
   { value: 'guilds', label: 'Guilds', icon: '🏛️' },
   { value: 'artifacts', label: 'Artifacts', icon: '💎' },
+  // UI & HUD
+  { value: 'ui', label: 'UI', icon: '🖼️' },
+  { value: 'hud', label: 'HUD', icon: '📊' },
+  { value: 'menus', label: 'Menus', icon: '📋' },
+  // Sound & Ambience
+  { value: 'sounds', label: 'Sounds', icon: '🔊' },
+  { value: 'ambience', label: 'Ambience', icon: '🌙' },
+  { value: 'music', label: 'Music', icon: '🎵' },
+  // VFX & Animation
+  { value: 'vfx', label: 'VFX', icon: '💫' },
+  { value: 'animation', label: 'Animation', icon: '🎬' },
+  // World & Environment
+  { value: 'weather', label: 'Weather', icon: '🌦️' },
+  { value: 'terrain', label: 'Terrain', icon: '⛰️' },
+  { value: 'world', label: 'World', icon: '🌍' },
+  // Camera & Controls
+  { value: 'camera', label: 'Camera', icon: '📷' },
+  { value: 'controls', label: 'Controls', icon: '🎮' },
+  // Storage & Data
+  { value: 'data', label: 'Data', icon: '💾' },
+  { value: 'storage', label: 'Storage', icon: '📦' },
+  { value: 'settings', label: 'Settings', icon: '⚙️' },
+  // Stealth & Sneaking
+  { value: 'stealth', label: 'Stealth', icon: '🥷' },
+  { value: 'sneaking', label: 'Sneaking', icon: '👤' },
+  // Dialogue & Books
+  { value: 'dialogue', label: 'Dialogue', icon: '💬' },
+  { value: 'books', label: 'Books', icon: '📚' },
+  { value: 'lore', label: 'Lore', icon: '📖' },
 ];
 
 const COMPLEXITY_LABELS: Record<number, { label: string; value: Complexity }> = {
