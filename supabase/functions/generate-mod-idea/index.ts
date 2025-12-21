@@ -114,8 +114,8 @@ local function createHUD()
 end
 
 local function onKeyPress(key)
-  if key.symbol == 'j' and input.isAltPressed() then
-    -- Toggle custom journal
+  if key.symbol == 'j' and key.withAlt then
+    -- Toggle custom journal (key.withAlt, key.withShift, key.withCtrl)
     core.sendGlobalEvent('MyMod_ToggleJournal', {})
   end
 end
@@ -161,26 +161,29 @@ return {
     title: "Using Built-in Interfaces",
     description: "Leverage OpenMW's built-in interface system",
     code: `local I = require('openmw.interfaces')
+local camera = require('openmw.camera')
 
--- AI Interface - control NPC behavior packages
+-- AI Interface - control NPC behavior packages (LOCAL scripts only)
 I.AI.startPackage({
   type = 'Travel',
   destPosition = util.vector3(1000, 2000, 100)
 })
-I.AI.getActivePackage(actor)
+local pkg = I.AI.getActivePackage()  -- Get current AI package
+local combatTarget = I.AI.getActiveTarget('Combat')  -- nil if not in combat
 
--- Combat Interface
-local inCombat = I.Combat.isInCombat(actor)
+-- Combat detection pattern (no I.Combat.isInCombat - use AI package check)
+local isInCombat = pkg and pkg.type == 'Combat'
 
--- Controls Interface (player scripts)
-I.Controls.overrideMovementInput(false)  -- Disable player movement
-I.Controls.overrideCombatInput(true)
+-- Controls Interface (PLAYER scripts only)
+I.Controls.overrideMovementControls(true)  -- Disable player movement
+I.Controls.overrideCombatControls(true)  -- Disable combat controls
 
--- Camera Interface (player scripts)
-I.Camera.setMode(I.Camera.MODE.ThirdPerson)
+-- Camera - use openmw.camera module, not I.Camera
+camera.setMode(camera.MODE.ThirdPerson)
+I.Camera.disableZoom(true)  -- Interface for disabling controls
 
--- Activation Interface
-I.Activation.addHandler(function(actor, object)
+-- Activation Interface (handler signature: object, actor)
+I.Activation.addHandlerForType(types.Door, function(object, actor)
   if object.recordId == 'my_special_door' then
     return false  -- Block activation
   end
@@ -1179,11 +1182,11 @@ local function toggleMenu()
   menuOpen = not menuOpen
   menuWindow.layout.props.visible = menuOpen
   menuWindow:update()
-  I.Controls.overrideMovementInput(menuOpen)
+  I.Controls.overrideMovementControls(menuOpen)  -- Correct method name
 end
 
 local function onKeyPress(key)
-  if key.symbol == 'm' and input.isAltPressed() then
+  if key.symbol == 'm' and key.withAlt then  -- Use key.withAlt not input.isAltPressed()
     toggleMenu()
   end
 end
@@ -1274,7 +1277,9 @@ local musicState = {
 
 local function updateMusicState()
   local wasInCombat = musicState.inCombat
-  musicState.inCombat = I.Combat and I.Combat.isInCombat(self.object) or false
+  -- Check combat via AI package (I.Combat.isInCombat doesn't exist)
+  local pkg = I.AI and I.AI.getActivePackage()
+  musicState.inCombat = pkg and pkg.type == 'Combat' or false
   
   if musicState.inCombat and not wasInCombat then
     musicState.currentTrack = 'combat'
@@ -1603,11 +1608,11 @@ local function startCinematic(targetPosition, duration)
   cinematicState.savedMode = camera.getMode()
   cinematicState.targetPos = targetPosition
   
-  -- Disable player controls
-  I.Controls.overrideMovementInput(true)
-  I.Controls.overrideCombatInput(true)
+  -- Disable player controls (correct method names)
+  I.Controls.overrideMovementControls(true)
+  I.Controls.overrideCombatControls(true)
   
-  -- Switch to static camera
+  -- Switch to static camera (use camera module, not interface)
   camera.setMode(camera.MODE.Static)
   
   -- Schedule end of cinematic
@@ -1622,9 +1627,9 @@ end
 local function endCinematic()
   cinematicState.active = false
   
-  -- Restore controls
-  I.Controls.overrideMovementInput(false)
-  I.Controls.overrideCombatInput(false)
+  -- Restore controls (correct method names)
+  I.Controls.overrideMovementControls(false)
+  I.Controls.overrideCombatControls(false)
   
   -- Restore camera mode
   if cinematicState.savedMode then
@@ -1679,14 +1684,14 @@ input.bindAction('CustomDodge', function(_, active)
 end, {})
 
 local function onKeyPress(key)
-  -- Check for custom modifier combinations
-  if key.symbol == 'space' and input.isShiftPressed() then
+  -- Check for custom modifier combinations (use key.withShift, key.withAlt, key.withCtrl)
+  if key.symbol == 'space' and key.withShift then
     -- Super jump
     core.sendGlobalEvent('ControlsMod_SuperJump', {})
     return
   end
   
-  if key.symbol == 'q' and input.isCtrlPressed() then
+  if key.symbol == 'q' and key.withCtrl then
     -- Quick spell
     core.sendGlobalEvent('ControlsMod_QuickSpell', {})
     return
@@ -2319,10 +2324,13 @@ Your responses must be valid JSON with this exact structure:
 - { type = time.GameTime } or { type = time.SimulationTime }
 
 ### openmw.interfaces (Built-in interfaces)
-- I.AI.startPackage({type='Travel', destPosition=vec3})
-- I.Combat.isInCombat(actor)
-- I.Controls.overrideMovementInput(enabled)
-- I.Camera.setMode(mode), I.Activation.addHandler(func)
+- I.AI.startPackage({type='Travel', destPosition=vec3}) - LOCAL only
+- I.AI.getActivePackage() - Get current AI package (check pkg.type == 'Combat' for combat)
+- I.AI.getActiveTarget('Combat') - Get combat target (nil if not in combat)
+- I.Controls.overrideMovementControls(enabled) - PLAYER only, block movement
+- I.Controls.overrideCombatControls(enabled) - PLAYER only, block combat
+- I.Camera.disableZoom(true) - Disable zoom (use openmw.camera.setMode for mode changes)
+- I.Activation.addHandlerForType(type, handler) - handler(object, actor) signature
 
 ${scriptContextRef}
 ${interfaceRef}
