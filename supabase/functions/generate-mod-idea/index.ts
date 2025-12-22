@@ -2367,7 +2367,7 @@ serve(async (req) => {
   }
 
   try {
-    const { gameType, themes, complexity, customNotes, isRandom } = await req.json();
+    const { gameType, themes, complexity, customNotes, isRandom, apiPackages } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -2381,7 +2381,37 @@ serve(async (req) => {
     };
 
     const selectedThemes = themes || [];
+    const selectedApiPackages = apiPackages || [];
     const systemPrompt = buildSystemPrompt(selectedThemes);
+
+    // Build API package focus instructions
+    let apiPackageInstructions = '';
+    if (selectedApiPackages.length > 0) {
+      const packageDescriptions: Record<string, string> = {
+        'openmw.core': 'openmw.core (events, dialogue, factions, quests, sound)',
+        'openmw.types': 'openmw.types (Actor, NPC, Item, Creature type records)',
+        'openmw.world': 'openmw.world (create objects, access cells, spawn - Global only)',
+        'openmw.self': 'openmw.self (reference to attached object - Local only)',
+        'openmw.nearby': 'openmw.nearby (find nearby objects/actors - Local only)',
+        'openmw.async': 'openmw.async (timers and callbacks)',
+        'openmw.util': 'openmw.util (vectors, colors, transforms)',
+        'openmw.ui': 'openmw.ui (HUD and menu creation - Player only)',
+        'openmw.camera': 'openmw.camera (camera mode and control - Player only)',
+        'openmw.input': 'openmw.input (key bindings - Player only)',
+        'openmw.storage': 'openmw.storage (persistent data storage)',
+        'openmw.interfaces': 'openmw.interfaces (AI, Controls, Activation, Camera, Combat)',
+        'openmw.animation': 'openmw.animation (animation playback - Local only)',
+        'openmw_aux.time': 'openmw_aux.time (repeating timers helper)',
+      };
+      
+      const packageList = selectedApiPackages.map((pkg: string) => packageDescriptions[pkg] || pkg).join('\n- ');
+      apiPackageInstructions = `
+
+PRIORITIZED API PACKAGES - The user specifically wants the generated code to focus on these OpenMW Lua packages:
+- ${packageList}
+
+Make sure your implementation hints prominently feature these packages with practical examples. Design the mod concept around capabilities these packages provide.`;
+    }
 
     let userPrompt = '';
     
@@ -2398,7 +2428,7 @@ IMPORTANT:
 - Specify which script context (Global/Local/Player) each code example belongs to
 - Show how scripts communicate via events (core.sendGlobalEvent, object:sendEvent)
 - Include onSave/onLoad for state persistence
-- Include a complete .omwscripts file example`;
+- Include a complete .omwscripts file example${apiPackageInstructions}`;
     } else {
       const themeContext = getRelevantTemplates(selectedThemes);
       const themeNames = themeContext.map(t => t.name).join(', ');
@@ -2414,7 +2444,7 @@ CRITICAL REQUIREMENTS:
 - Include onSave/onLoad handlers for persistent state
 - Use openmw.interfaces where appropriate (AI, Combat, etc.)
 - Include a complete .omwscripts example showing file registration
-- For complex mods, show the communication flow between script types`;
+- For complex mods, show the communication flow between script types${apiPackageInstructions}`;
     }
 
     console.log('Generating mod idea with prompt:', userPrompt);

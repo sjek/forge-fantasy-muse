@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Wand2, Dices, Loader2 } from 'lucide-react';
+import { Wand2, Dices, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { GameType, ThemeTag, Complexity, GeneratorFormData } from '@/types/mod-idea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GameType, ThemeTag, Complexity, ApiPackage, GeneratorFormData } from '@/types/mod-idea';
 
 const GAME_TYPES: { value: GameType; label: string }[] = [
   { value: 'rpg', label: 'RPG' },
@@ -67,6 +69,33 @@ const COMPLEXITY_LABELS: Record<number, { label: string; value: Complexity }> = 
   100: { label: 'Full Overhaul', value: 'overhaul' },
 };
 
+type ScriptContext = 'All' | 'Global' | 'Local' | 'Player' | 'Varies';
+
+const API_PACKAGES: { value: ApiPackage; label: string; icon: string; context: ScriptContext; description: string }[] = [
+  { value: 'openmw.core', label: 'Core', icon: '⚙️', context: 'All', description: 'Events, dialogue, factions, quests' },
+  { value: 'openmw.types', label: 'Types', icon: '📦', context: 'All', description: 'Actor, NPC, Item, Creature access' },
+  { value: 'openmw.world', label: 'World', icon: '🌍', context: 'Global', description: 'Create objects, access cells, spawn' },
+  { value: 'openmw.self', label: 'Self', icon: '👤', context: 'Local', description: 'Reference to attached object' },
+  { value: 'openmw.nearby', label: 'Nearby', icon: '📍', context: 'Local', description: 'Find nearby objects/actors' },
+  { value: 'openmw.async', label: 'Async', icon: '⏱️', context: 'All', description: 'Timers and callbacks' },
+  { value: 'openmw.util', label: 'Util', icon: '🔧', context: 'All', description: 'Vectors, colors, transforms' },
+  { value: 'openmw.ui', label: 'UI', icon: '🖼️', context: 'Player', description: 'HUD and menu creation' },
+  { value: 'openmw.camera', label: 'Camera', icon: '📷', context: 'Player', description: 'Camera mode and control' },
+  { value: 'openmw.input', label: 'Input', icon: '🎮', context: 'Player', description: 'Key bindings and input' },
+  { value: 'openmw.storage', label: 'Storage', icon: '💾', context: 'All', description: 'Persistent data storage' },
+  { value: 'openmw.interfaces', label: 'Interfaces', icon: '🔌', context: 'Varies', description: 'AI, Controls, Activation, Camera, Combat' },
+  { value: 'openmw.animation', label: 'Animation', icon: '🎬', context: 'Local', description: 'Animation playback control' },
+  { value: 'openmw_aux.time', label: 'Time', icon: '🕐', context: 'All', description: 'Repeating timers helper' },
+];
+
+const CONTEXT_COLORS: Record<ScriptContext, string> = {
+  'All': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  'Global': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'Local': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  'Player': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  'Varies': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+};
+
 interface GeneratorFormProps {
   onGenerate: (data: GeneratorFormData) => void;
   onRandomGenerate: () => void;
@@ -76,14 +105,24 @@ interface GeneratorFormProps {
 export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: GeneratorFormProps) {
   const [gameType, setGameType] = useState<GameType>('rpg');
   const [selectedThemes, setSelectedThemes] = useState<ThemeTag[]>([]);
+  const [selectedApiPackages, setSelectedApiPackages] = useState<ApiPackage[]>([]);
   const [complexityValue, setComplexityValue] = useState([50]);
   const [customNotes, setCustomNotes] = useState('');
+  const [apiSectionOpen, setApiSectionOpen] = useState(false);
 
   const toggleTheme = (theme: ThemeTag) => {
     setSelectedThemes((prev) =>
       prev.includes(theme)
         ? prev.filter((t) => t !== theme)
         : [...prev, theme]
+    );
+  };
+
+  const toggleApiPackage = (pkg: ApiPackage) => {
+    setSelectedApiPackages((prev) =>
+      prev.includes(pkg)
+        ? prev.filter((p) => p !== pkg)
+        : [...prev, pkg]
     );
   };
 
@@ -100,6 +139,7 @@ export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: Ge
       gameType,
       themes: selectedThemes.length > 0 ? selectedThemes : ['magic', 'quests'],
       complexity: getComplexity(),
+      apiPackages: selectedApiPackages.length > 0 ? selectedApiPackages : undefined,
       customNotes: customNotes || undefined,
     });
   };
@@ -148,6 +188,71 @@ export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: Ge
           ))}
         </div>
       </div>
+
+      {/* API Packages (Collapsible) */}
+      <Collapsible open={apiSectionOpen} onOpenChange={setApiSectionOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center justify-between w-full py-2 text-left group"
+          >
+            <Label className="font-display text-sm uppercase tracking-wider text-foreground cursor-pointer group-hover:text-primary transition-colors">
+              API Packages (Advanced)
+              {selectedApiPackages.length > 0 && (
+                <span className="ml-2 text-xs text-gold">({selectedApiPackages.length} selected)</span>
+              )}
+            </Label>
+            <ChevronDown 
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                apiSectionOpen ? 'rotate-180' : ''
+              }`} 
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-2">
+          <p className="text-xs text-muted-foreground font-body">
+            Select OpenMW Lua API packages to prioritize in the generated code. Context indicates which script types can use each package.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <TooltipProvider delayDuration={200}>
+              {API_PACKAGES.map((pkg) => (
+                <Tooltip key={pkg.value}>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant={selectedApiPackages.includes(pkg.value) ? 'default' : 'outline'}
+                      className={`cursor-pointer transition-all font-body ${
+                        selectedApiPackages.includes(pkg.value)
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'hover:bg-secondary'
+                      }`}
+                      onClick={() => toggleApiPackage(pkg.value)}
+                    >
+                      <span className="mr-1">{pkg.icon}</span>
+                      {pkg.label}
+                      <span className={`ml-1.5 px-1 py-0.5 text-[10px] rounded border ${CONTEXT_COLORS[pkg.context]}`}>
+                        {pkg.context}
+                      </span>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[200px]">
+                    <p className="font-semibold">{pkg.value}</p>
+                    <p className="text-xs text-muted-foreground">{pkg.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+          {/* Context Legend */}
+          <div className="flex flex-wrap gap-3 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground">Context:</span>
+            {Object.entries(CONTEXT_COLORS).map(([context, colorClass]) => (
+              <span key={context} className={`text-xs px-1.5 py-0.5 rounded border ${colorClass}`}>
+                {context}
+              </span>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Complexity Slider */}
       <div className="space-y-3">
