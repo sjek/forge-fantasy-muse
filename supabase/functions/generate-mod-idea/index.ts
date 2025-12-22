@@ -17,7 +17,7 @@ const SCRIPT_CONTEXT_TEMPLATES = {
     access: [
       "openmw.world - Create objects, access cells, modify world",
       "core.sendGlobalEvent - Receive events from local scripts",
-      "core.dialogue.journal - Quest journal management",
+      "types.Player.quests(player)[questId]:addJournalEntry(stage, actor) - Quest journal updates",
       "Full world manipulation capabilities"
     ],
     example: `-- scripts/MyMod/global.lua
@@ -235,9 +235,11 @@ core.sendGlobalEvent('MyMod_QuestProgress', {
 eventHandlers = {
   MyMod_QuestProgress = function(data)
     if data.stage == 'completed' then
-      -- Update journal, spawn rewards
-      updateJournal(data.questId, 100)
-      spawnReward(data.player)
+      -- Update journal with actor as quest source
+      local types = require('openmw.types')
+      local player = world.players[1]
+      types.Player.quests(player)[data.questId]:addJournalEntry(100, data.actor)
+      spawnReward(player)
     end
   end,
 }`
@@ -663,7 +665,7 @@ return {
     themes: ["quests", "exploration"],
     scriptContext: "global",
     apis: [
-      "core.dialogue.journal - Quest journal access",
+      "types.Player.quests(player)[questId]:addJournalEntry(stage, actor) - Quest journal updates",
       "core.sendGlobalEvent - Trigger world events",
       "object:sendEvent - Notify specific objects",
       "async:registerTimerCallback - Delayed quest stages",
@@ -686,14 +688,17 @@ local questState = {
 
 local QUEST_ID = 'my_epic_quest'
 
-local function updateJournal(stage)
-  -- Journal updates handled through game data
+local function updateJournal(stage, actor)
+  -- Use correct OpenMW API for journal entries
+  local types = require('openmw.types')
+  local player = world.players[1]
+  types.Player.quests(player)[QUEST_ID]:addJournalEntry(stage, actor)
   questState.stage = stage
 end
 
 local delayedStageCallback = async:registerTimerCallback('quest_next_stage',
   function(data)
-    updateJournal(data.nextStage)
+    updateJournal(data.nextStage, data.actor)
     if data.spawnNpc then
       local npc = world.createObject(data.spawnNpc, 1)
       world.players[1]:sendEvent('QuestMod_ShowMessage', {
@@ -722,13 +727,14 @@ return {
         -- Delayed stage advancement
         async:newSimulationTimer(5, delayedStageCallback, {
           nextStage = questState.stage + 1,
-          spawnNpc = 'quest_reward_npc'
+          spawnNpc = 'quest_reward_npc',
+          actor = data.actor
         })
       end
     end,
     QuestMod_StartQuest = function(data)
       if questState.stage == 0 then
-        updateJournal(1)
+        updateJournal(1, data.questGiver)
         -- Notify player script to show HUD
         world.players[1]:sendEvent('QuestMod_ShowQuestHUD', {
           title = 'The Dark Ritual'
