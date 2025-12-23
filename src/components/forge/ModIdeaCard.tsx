@@ -30,7 +30,26 @@ const COMPLEXITY_LABELS: Record<string, string> = {
 export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
   const { toast } = useToast();
+
+  const handleCopyCode = async (code: string, index: number) => {
+    try {
+      await copyToClipboard(code);
+      setCopiedHintIndex(index);
+      toast({
+        title: "Code Copied",
+        description: "Lua code copied to clipboard!",
+      });
+      setTimeout(() => setCopiedHintIndex(null), 2000);
+    } catch (err) {
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy code to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleShare = async () => {
     const text = exportAsText([idea]);
@@ -126,9 +145,32 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
                   {hint.description}
                 </p>
                 {hint.luaExample && (
-                  <pre className="bg-background/80 rounded p-2 text-xs font-mono text-foreground overflow-x-auto">
-                    {hint.luaExample}
-                  </pre>
+                  <div className="mt-2 rounded-md overflow-hidden border border-border/50">
+                    <div className="flex items-center justify-between bg-secondary/80 px-3 py-1.5">
+                      <span className="text-xs font-mono text-muted-foreground">Lua</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopyCode(hint.luaExample!, idx)}
+                      >
+                        {copiedHintIndex === idx ? (
+                          <>
+                            <Check className="h-3 w-3 mr-1 text-forest" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <pre className="bg-background/80 p-3 text-xs font-mono text-foreground overflow-x-auto">
+                      <code>{hint.luaExample}</code>
+                    </pre>
+                  </div>
                 )}
                 {hint.docLink && (
                   <a
