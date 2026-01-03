@@ -24,12 +24,20 @@ const SCRIPT_CONTEXT_TEMPLATES = {
 local world = require('openmw.world')
 local core = require('openmw.core')
 
+local currentStage = 0
+
+-- onSave: Called when game is saved. Return data to persist.
+-- NOTE: Cannot access openmw.nearby here (may be inactive)
 local function onSave()
-  return { questStage = currentStage }
+  return { version = 1, questStage = currentStage }
 end
 
-local function onLoad(data)
-  if data then currentStage = data.questStage end
+-- onLoad: Called when game is loaded. Receives savedData AND initData.
+-- savedData = what onSave returned; initData = what was passed to script creation
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then 
+    currentStage = savedData.questStage 
+  end
 end
 
 return {
@@ -57,8 +65,10 @@ local self = require('openmw.self')
 local core = require('openmw.core')
 local nearby = require('openmw.nearby')
 local types = require('openmw.types')
+local time = require('openmw_aux.time')
 
 local state = { isActive = false }
+local stopBehaviorTimer = nil
 
 local function onActivated(actor)
   if actor.type == types.Player then
@@ -70,14 +80,45 @@ local function onActivated(actor)
   end
 end
 
-local function onSave() return state end
-local function onLoad(data) if data then state = data end end
+-- onSave: Cannot access openmw.nearby here (script may be inactive)
+local function onSave() 
+  return { version = 1, state = state } 
+end
+
+-- onLoad: Accepts both savedData and initData parameters
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    state = savedData.state 
+  end 
+end
+
+-- onActive: Called every time script becomes active (including after save load)
+-- Use for starting timers, accessing nearby, session initialization
+local function onActive()
+  stopBehaviorTimer = time.runRepeatedly(function()
+    -- Periodic behavior check (can access nearby here)
+    if state.isActive and #nearby.players > 0 then
+      -- Do something when player is near
+    end
+  end, time.second * 2, { type = time.SimulationTime })
+end
+
+-- onInactive: Called when script becomes inactive
+-- Clean up timers and resources. CANNOT access openmw.nearby here.
+local function onInactive()
+  if stopBehaviorTimer then 
+    stopBehaviorTimer() 
+    stopBehaviorTimer = nil
+  end
+end
 
 return {
   engineHandlers = {
     onActivated = onActivated,
     onSave = onSave,
     onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
   },
   eventHandlers = {
     MyMod_StartBehavior = function(data)
@@ -101,7 +142,7 @@ return {
 local self = require('openmw.self')
 local ui = require('openmw.ui')
 local input = require('openmw.input')
-local async = require('openmw.async')
+local core = require('openmw.core')
 
 local hudElement = nil
 
@@ -113,9 +154,16 @@ local function createHUD()
   })
 end
 
+local function destroyHUD()
+  if hudElement then 
+    hudElement:destroy()
+    hudElement = nil
+  end
+end
+
 local function onKeyPress(key)
   if key.symbol == 'j' and key.withAlt then
-    -- Toggle custom journal (key.withAlt, key.withShift, key.withCtrl)
+    -- Toggle custom journal (use key.withAlt, key.withShift, key.withCtrl)
     core.sendGlobalEvent('MyMod_ToggleJournal', {})
   end
 end
@@ -123,7 +171,12 @@ end
 return {
   engineHandlers = {
     onKeyPress = onKeyPress,
-    onInit = createHUD,
+    -- onActive: Runs every time script becomes active (including after load)
+    -- Use for HUD creation, timer starts, session initialization
+    onActive = createHUD,
+    -- onInactive: Runs when script becomes inactive
+    -- Clean up HUD elements, stop timers. Cannot access nearby here.
+    onInactive = destroyHUD,
   },
   eventHandlers = {
     MyMod_UpdateHUD = function(data)
@@ -311,7 +364,9 @@ const MULTI_STAGE_TEMPLATES = {
   stateMachine: {
     title: "State Machine with Persistence",
     description: "Save/load state across game sessions",
-    code: `local questState = {
+    code: `local core = require('openmw.core')
+
+local questState = {
   stage = 0,
   objectives = {},
   npcsSpoken = {},
@@ -330,7 +385,7 @@ local function advanceQuest()
   end
 end
 
--- CRITICAL: These handlers save/load your state
+-- onSave: Return state to persist. Cannot access openmw.nearby here.
 local function onSave()
   return { 
     version = 1, 
@@ -338,9 +393,10 @@ local function onSave()
   }
 end
 
-local function onLoad(data)
-  if data and data.version == 1 then
-    questState = data.state
+-- onLoad: Accepts (savedData, initData). savedData is from onSave.
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then
+    questState = savedData.state
   end
 end
 
@@ -492,32 +548,56 @@ const CATEGORY_TEMPLATES = {
 local self = require('openmw.self')
 local types = require('openmw.types')
 local core = require('openmw.core')
-local async = require('openmw.async')
+local time = require('openmw_aux.time')
 
 local activeEffects = {}
+local stopEffectCheck = nil
 
-local function onSave() return { effects = activeEffects } end
-local function onLoad(data) if data then activeEffects = data.effects end end
+-- onSave: Cannot access openmw.nearby here
+local function onSave() 
+  return { version = 1, effects = activeEffects } 
+end
 
--- Check active effects each frame
-local function onUpdate(dt)
-  local effects = types.Actor.activeEffects(self.object)
-  
-  -- Use getEffect to check for specific effect
-  local fortifyEffect = effects:getEffect('fortifymagicka')
-  if fortifyEffect then
-    -- Custom amplification when fortified
-    if not activeEffects.amplified then
-      activeEffects.amplified = true
-      core.sendGlobalEvent('MagicMod_Amplified', { actor = self.object })
+-- onLoad: Accepts (savedData, initData)
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    activeEffects = savedData.effects 
+  end 
+end
+
+-- onActive: Start periodic checks when script becomes active
+local function onActive()
+  stopEffectCheck = time.runRepeatedly(function()
+    local effects = types.Actor.activeEffects(self.object)
+    
+    -- Use getEffect to check for specific effect
+    local fortifyEffect = effects:getEffect('fortifymagicka')
+    if fortifyEffect then
+      if not activeEffects.amplified then
+        activeEffects.amplified = true
+        core.sendGlobalEvent('MagicMod_Amplified', { actor = self.object })
+      end
+    else
+      activeEffects.amplified = false
     end
-  else
-    activeEffects.amplified = false
+  end, time.second, { type = time.SimulationTime })
+end
+
+-- onInactive: Clean up timers
+local function onInactive()
+  if stopEffectCheck then 
+    stopEffectCheck() 
+    stopEffectCheck = nil
   end
 end
 
 return {
-  engineHandlers = { onUpdate = onUpdate, onSave = onSave, onLoad = onLoad },
+  engineHandlers = { 
+    onSave = onSave, 
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
 }`
       },
       {
@@ -529,8 +609,17 @@ local core = require('openmw.core')
 
 local spellRegistry = {}
 
-local function onSave() return { registry = spellRegistry } end
-local function onLoad(data) if data then spellRegistry = data.registry end end
+-- onSave: Return state to persist
+local function onSave() 
+  return { version = 1, registry = spellRegistry } 
+end
+
+-- onLoad: Accepts (savedData, initData)
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    spellRegistry = savedData.registry 
+  end 
+end
 
 return {
   engineHandlers = { onSave = onSave, onLoad = onLoad },
@@ -573,7 +662,6 @@ return {
 local self = require('openmw.self')
 local core = require('openmw.core')
 local I = require('openmw.interfaces')
-local async = require('openmw.async')
 local time = require('openmw_aux.time')
 
 local schedule = {
@@ -581,12 +669,13 @@ local schedule = {
   homePosition = nil,
   workPosition = nil
 }
+local stopScheduleCheck = nil
 
 local function getHour()
   return (core.getGameTime() / 3600) % 24
 end
 
-local checkSchedule = time.runRepeatedly(function()
+local function checkSchedule()
   local hour = getHour()
   local newActivity = 'idle'
   
@@ -607,13 +696,40 @@ local checkSchedule = time.runRepeatedly(function()
       activity = newActivity
     })
   end
-end, time.hour * 0.5, { type = time.GameTime })
+end
 
-local function onSave() return schedule end
-local function onLoad(data) if data then schedule = data end end
+-- onSave: Cannot access openmw.nearby here
+local function onSave() 
+  return { version = 1, schedule = schedule } 
+end
+
+-- onLoad: Accepts (savedData, initData)
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    schedule = savedData.schedule 
+  end 
+end
+
+-- onActive: Start schedule timer when script becomes active
+local function onActive()
+  stopScheduleCheck = time.runRepeatedly(checkSchedule, time.hour * 0.5, { type = time.GameTime })
+end
+
+-- onInactive: Clean up timer
+local function onInactive()
+  if stopScheduleCheck then 
+    stopScheduleCheck() 
+    stopScheduleCheck = nil
+  end
+end
 
 return {
-  engineHandlers = { onSave = onSave, onLoad = onLoad },
+  engineHandlers = { 
+    onSave = onSave, 
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
   eventHandlers = {
     NPCMod_GoTo = function(data)
       I.AI.startPackage({
@@ -633,10 +749,21 @@ local core = require('openmw.core')
 
 local factionState = {}
 
+-- onSave/onLoad: Proper persistence with version checking
+local function onSave() 
+  return { version = 1, factions = factionState } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    factionState = savedData.factions 
+  end 
+end
+
 return {
   engineHandlers = {
-    onSave = function() return { factions = factionState } end,
-    onLoad = function(data) if data then factionState = data.factions end end,
+    onSave = onSave,
+    onLoad = onLoad,
   },
   eventHandlers = {
     NPCMod_ActivityChange = function(data)
@@ -710,10 +837,11 @@ local delayedStageCallback = async:registerTimerCallback('quest_next_stage',
 
 return {
   engineHandlers = {
+    -- onSave/onLoad with proper signature
     onSave = function() return { version = 1, quest = questState } end,
-    onLoad = function(data)
-      if data and data.version == 1 then
-        questState = data.quest
+    onLoad = function(savedData, initData)
+      if savedData and savedData.version == 1 then
+        questState = savedData.quest
       end
     end,
   },
@@ -773,8 +901,13 @@ end
 return {
   engineHandlers = {
     onActivated = onActivated,
-    onSave = function() return { triggered = triggered } end,
-    onLoad = function(data) if data then triggered = data.triggered end end,
+    -- onSave/onLoad with proper signatures
+    onSave = function() return { version = 1, triggered = triggered } end,
+    onLoad = function(savedData, initData) 
+      if savedData and savedData.version == 1 then 
+        triggered = savedData.triggered 
+      end 
+    end,
   },
 }`
       }
@@ -948,6 +1081,7 @@ local time = require('openmw_aux.time')
 
 local ARTIFACT_ID = 'daedric_soul_blade'
 local chargeState = { current = 100, max = 100 }
+local stopPassiveCheck = nil
 
 local function isEquipped()
   local equipment = types.Actor.getEquipment(self.object)
@@ -955,8 +1089,7 @@ local function isEquipped()
   return weapon and weapon.recordId == ARTIFACT_ID
 end
 
--- Passive effect while equipped
-local passiveCheck = time.runRepeatedly(function()
+local function checkPassiveEffect()
   if not isEquipped() then return end
   
   -- Drain nearby enemies using ipairs for nearby.actors list
@@ -972,12 +1105,38 @@ local passiveCheck = time.runRepeatedly(function()
       end
     end
   end
-end, time.second * 5, { type = time.SimulationTime })
+end
+
+-- onSave/onLoad with proper signatures
+local function onSave() 
+  return { version = 1, charge = chargeState } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    chargeState = savedData.charge 
+  end 
+end
+
+-- onActive: Start timer when script becomes active
+local function onActive()
+  stopPassiveCheck = time.runRepeatedly(checkPassiveEffect, time.second * 5, { type = time.SimulationTime })
+end
+
+-- onInactive: Clean up timer
+local function onInactive()
+  if stopPassiveCheck then 
+    stopPassiveCheck() 
+    stopPassiveCheck = nil
+  end
+end
 
 return {
   engineHandlers = {
-    onSave = function() return chargeState end,
-    onLoad = function(data) if data then chargeState = data end end,
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
   },
   eventHandlers = {
     ArtifactMod_SoulDrain = function(data)
@@ -994,8 +1153,7 @@ return {
 local self = require('openmw.self')
 local types = require('openmw.types')
 local ui = require('openmw.ui')
-local I = require('openmw.interfaces')
-local time = require('openmw_aux.time')
+local core = require('openmw.core')
 
 local combatState = {
   combo = 0,
@@ -1013,7 +1171,7 @@ local function updateComboUI()
   end
 end
 
-local function onInit()
+local function createComboHUD()
   comboDisplay = ui.create({
     layer = 'HUD',
     template = ui.templates.textNormal,
@@ -1021,9 +1179,21 @@ local function onInit()
   })
 end
 
+local function destroyComboHUD()
+  if comboDisplay then 
+    comboDisplay:destroy()
+    comboDisplay = nil
+  end
+end
+
 -- Track combat hits via event from global
 return {
-  engineHandlers = { onInit = onInit },
+  engineHandlers = { 
+    -- onActive: Create HUD when script becomes active (including after load)
+    onActive = createComboHUD,
+    -- onInactive: Destroy HUD when script becomes inactive
+    onInactive = destroyComboHUD,
+  },
   eventHandlers = {
     CombatMod_HitLanded = function(data)
       local now = core.getSimulationTime()
@@ -1129,15 +1299,30 @@ local function updateBar()
   hudElement:update()
 end
 
-local stopUpdate = time.runRepeatedly(updateBar, 0.1 * time.second, { type = time.SimulationTime })
+local stopUpdate = nil
+
+-- onActive: Create HUD and start updates when script becomes active
+local function onActive()
+  createHealthBar()
+  stopUpdate = time.runRepeatedly(updateBar, 0.1 * time.second, { type = time.SimulationTime })
+end
+
+-- onInactive: Destroy HUD and stop updates when script becomes inactive
+local function onInactive()
+  if hudElement then 
+    hudElement:destroy() 
+    hudElement = nil
+  end 
+  if stopUpdate then 
+    stopUpdate() 
+    stopUpdate = nil
+  end
+end
 
 return {
   engineHandlers = {
-    onActive = createHealthBar,
-    onInactive = function() 
-      if hudElement then hudElement:destroy() end 
-      if stopUpdate then stopUpdate() end
-    end,
+    onActive = onActive,
+    onInactive = onInactive,
   },
 }`
       },
@@ -1184,22 +1369,34 @@ local function createMenu()
   })
 end
 
+local function destroyMenu()
+  if menuWindow then 
+    menuWindow:destroy()
+    menuWindow = nil
+  end
+  menuOpen = false
+end
+
 local function toggleMenu()
+  if not menuWindow then return end
   menuOpen = not menuOpen
   menuWindow.layout.props.visible = menuOpen
   menuWindow:update()
-  I.Controls.overrideMovementControls(menuOpen)  -- Correct method name
+  I.Controls.overrideMovementControls(menuOpen)
 end
 
 local function onKeyPress(key)
-  if key.symbol == 'm' and key.withAlt then  -- Use key.withAlt not input.isAltPressed()
+  if key.symbol == 'm' and key.withAlt then
     toggleMenu()
   end
 end
 
 return {
   engineHandlers = {
-    onInit = createMenu,
+    -- onActive: Create menu when script becomes active (including after load)
+    onActive = createMenu,
+    -- onInactive: Destroy menu when script becomes inactive
+    onInactive = destroyMenu,
     onKeyPress = onKeyPress,
   },
 }`
@@ -1235,6 +1432,7 @@ local AMBIENT_SOUND = 'waterfall_loop'
 local RANGE = 2000
 
 local isPlaying = false
+local stopDistanceCheck = nil
 
 local function checkPlayerDistance()
   for _, player in ipairs(nearby.players) do
@@ -1254,16 +1452,27 @@ local function checkPlayerDistance()
   end
 end
 
-time.runRepeatedly(checkPlayerDistance, time.second, { type = time.SimulationTime })
+-- onActive: Start distance check timer when script becomes active
+local function onActive()
+  stopDistanceCheck = time.runRepeatedly(checkPlayerDistance, time.second, { type = time.SimulationTime })
+end
+
+-- onInactive: Stop sound and timer when script becomes inactive
+local function onInactive()
+  if isPlaying then
+    core.sound.stopSound(AMBIENT_SOUND, self.object)
+    isPlaying = false
+  end
+  if stopDistanceCheck then 
+    stopDistanceCheck() 
+    stopDistanceCheck = nil
+  end
+end
 
 return {
   engineHandlers = {
-    onInactive = function()
-      if isPlaying then
-        core.sound.stopSound(AMBIENT_SOUND, self.object)
-        isPlaying = false
-      end
-    end,
+    onActive = onActive,
+    onInactive = onInactive,
   },
 }`
       },
@@ -1280,6 +1489,7 @@ local musicState = {
   currentTrack = 'explore',
   inCombat = false
 }
+local stopMusicCheck = nil
 
 local function updateMusicState()
   local wasInCombat = musicState.inCombat
@@ -1296,12 +1506,36 @@ local function updateMusicState()
   end
 end
 
-time.runRepeatedly(updateMusicState, time.second * 2, { type = time.SimulationTime })
+-- onSave/onLoad with proper signatures
+local function onSave() 
+  return { version = 1, music = musicState } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    musicState = savedData.music 
+  end 
+end
+
+-- onActive: Start music state check when script becomes active
+local function onActive()
+  stopMusicCheck = time.runRepeatedly(updateMusicState, time.second * 2, { type = time.SimulationTime })
+end
+
+-- onInactive: Stop timer when script becomes inactive
+local function onInactive()
+  if stopMusicCheck then 
+    stopMusicCheck() 
+    stopMusicCheck = nil
+  end
+end
 
 return {
   engineHandlers = {
-    onSave = function() return musicState end,
-    onLoad = function(data) if data then musicState = data end end,
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
   },
 }`
       }
@@ -1336,6 +1570,7 @@ local animState = {
   customIdle = false,
   currentAnim = nil
 }
+local stopAnimCheck = nil
 
 local function playCustomIdle()
   if anim.hasAnimation(self.object, 'idle_custom') then
@@ -1364,16 +1599,28 @@ local function playEmote(emoteName)
   end
 end
 
+-- onActive: Start animation check timer when script becomes active
+local function onActive()
+  stopAnimCheck = time.runRepeatedly(function()
+    local active = anim.getActiveGroup(self.object, anim.BONE_GROUP.UpperBody)
+    if not active or active == 'idle' then
+      playCustomIdle()
+    end
+  end, time.second * 5, { type = time.SimulationTime })
+end
+
+-- onInactive: Stop timer when script becomes inactive
+local function onInactive()
+  if stopAnimCheck then 
+    stopAnimCheck() 
+    stopAnimCheck = nil
+  end
+end
+
 return {
   engineHandlers = {
-    onActive = function()
-      time.runRepeatedly(function()
-        local active = anim.getActiveGroup(self.object, anim.BONE_GROUP.UpperBody)
-        if not active or active == 'idle' then
-          playCustomIdle()
-        end
-      end, time.second * 5, { type = time.SimulationTime })
-    end,
+    onActive = onActive,
+    onInactive = onInactive,
   },
   eventHandlers = {
     AnimMod_PlayEmote = function(data)
@@ -1501,12 +1748,23 @@ local function updateWeather()
   end
 end
 
-time.runRepeatedly(updateWeather, time.second * 10, { type = time.GameTime })
+local stopWeatherUpdate = nil
+
+-- onSave/onLoad with proper signatures
+local function onSave() 
+  return { version = 1, weather = weatherState } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    weatherState = savedData.weather 
+  end 
+end
 
 return {
   engineHandlers = {
-    onSave = function() return weatherState end,
-    onLoad = function(data) if data then weatherState = data end end,
+    onSave = onSave,
+    onLoad = onLoad,
   },
   eventHandlers = {
     WeatherMod_TriggerEvent = function(data)
@@ -1553,23 +1811,24 @@ local function onRegionChange(newRegion)
 end
 
 local lastRegion = nil
-time.runRepeatedly(function()
-  local currentRegion = getPlayerRegion()
-  if currentRegion ~= lastRegion then
-    onRegionChange(currentRegion)
-    lastRegion = currentRegion
-  end
-end, time.second * 2, { type = time.SimulationTime })
+local stopRegionCheck = nil
+
+-- onSave/onLoad with proper signatures
+local function onSave() 
+  return { version = 1, regions = regionState, lastRegion = lastRegion } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    regionState = savedData.regions or {}
+    lastRegion = savedData.lastRegion
+  end 
+end
 
 return {
   engineHandlers = {
-    onSave = function() return { regions = regionState, lastRegion = lastRegion } end,
-    onLoad = function(data) 
-      if data then 
-        regionState = data.regions or {}
-        lastRegion = data.lastRegion
-      end 
-    end,
+    onSave = onSave,
+    onLoad = onLoad,
   },
 }`
       }
@@ -1774,10 +2033,11 @@ return {
     end,
   },
   engineHandlers = {
-    onLoad = function(data)
+    -- onLoad with proper signature for migration handling
+    onLoad = function(savedData, initData)
       -- Migration from old save format if needed
-      if data and data.version == 0 then
-        for k, v in pairs(data.settings or {}) do
+      if savedData and savedData.version == 0 then
+        for k, v in pairs(savedData.settings or {}) do
           modSettings:set(k, v)
         end
       end
@@ -1829,12 +2089,26 @@ local function trackPlayTime()
   playerStats:set('playTime', playTime + 1)
 end
 
-time.runRepeatedly(trackDistance, time.second * 5, { type = time.SimulationTime })
-time.runRepeatedly(trackPlayTime, time.second * 60, { type = time.SimulationTime })
+local stopDistanceTrack = nil
+local stopPlayTimeTrack = nil
+
+-- onActive: Start tracking when script becomes active
+local function onActive()
+  initStats()
+  stopDistanceTrack = time.runRepeatedly(trackDistance, time.second * 5, { type = time.SimulationTime })
+  stopPlayTimeTrack = time.runRepeatedly(trackPlayTime, time.second * 60, { type = time.SimulationTime })
+end
+
+-- onInactive: Stop timers when script becomes inactive
+local function onInactive()
+  if stopDistanceTrack then stopDistanceTrack() stopDistanceTrack = nil end
+  if stopPlayTimeTrack then stopPlayTimeTrack() stopPlayTimeTrack = nil end
+end
 
 return {
   engineHandlers = {
-    onActive = initStats,
+    onActive = onActive,
+    onInactive = onInactive,
   },
   eventHandlers = {
     ProgressMod_AddKill = function(data)
@@ -1936,12 +2210,38 @@ local function updateDetection()
   detectionState.awareness = math.max(0, awareness - AWARENESS_DECAY)
 end
 
-time.runRepeatedly(updateDetection, time.second, { type = time.SimulationTime })
+local stopDetectionCheck = nil
+
+-- onSave/onLoad with proper signatures
+local function onSave() 
+  return { version = 1, detection = detectionState } 
+end
+
+local function onLoad(savedData, initData) 
+  if savedData and savedData.version == 1 then 
+    detectionState = savedData.detection 
+  end 
+end
+
+-- onActive: Start detection timer when script becomes active
+local function onActive()
+  stopDetectionCheck = time.runRepeatedly(updateDetection, time.second, { type = time.SimulationTime })
+end
+
+-- onInactive: Stop timer when script becomes inactive
+local function onInactive()
+  if stopDetectionCheck then 
+    stopDetectionCheck() 
+    stopDetectionCheck = nil
+  end
+end
 
 return {
   engineHandlers = {
-    onSave = function() return detectionState end,
-    onLoad = function(data) if data then detectionState = data end end,
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
   },
   eventHandlers = {
     StealthMod_AlertNearby = function(data)
@@ -1978,6 +2278,13 @@ local function createStealthHUD()
       visible = false
     }
   })
+end
+
+local function destroyStealthHUD()
+  if stealthHUD then 
+    stealthHUD:destroy()
+    stealthHUD = nil
+  end
 end
 
 local function checkAssassinationTarget()
@@ -2017,7 +2324,10 @@ end
 
 return {
   engineHandlers = {
-    onInit = createStealthHUD,
+    -- onActive: Create HUD when script becomes active
+    onActive = createStealthHUD,
+    -- onInactive: Destroy HUD when script becomes inactive
+    onInactive = destroyStealthHUD,
     onUpdate = checkAssassinationTarget,
   },
   eventHandlers = {
@@ -2030,7 +2340,7 @@ return {
       end
     end,
   },
-}`
+`
       }
     ],
     docLinks: [
@@ -2346,13 +2656,68 @@ ${multiStageRef}
 ## Category-Specific Patterns:
 ${categoryContext}
 
+## Script Lifecycle Handlers (CRITICAL):
+
+### When to use each handler:
+- **onInit**: Called ONCE when script is first created (not after save/load). Use only for one-time creation setup that doesn't need to survive saves.
+- **onActive**: Called every time script becomes active (including after save load). Use for HUD creation, starting timers, session initialization. This is where most initialization should happen.
+- **onInactive**: Called when script becomes inactive. MUST clean up timers (call stop functions) and destroy UI elements. CANNOT access openmw.nearby here.
+- **onSave**: Called during save. Return data to persist. CANNOT access openmw.nearby (script may be inactive). Always include version number for migrations.
+- **onLoad**: Called on load. MUST accept (savedData, initData) parameters. savedData is from onSave; initData is from script creation.
+
+### Correct lifecycle pattern:
+\`\`\`lua
+local hudElement = nil
+local stopTimer = nil
+
+local function onSave()
+  return { version = 1, myData = state }  -- Always version your save data
+end
+
+local function onLoad(savedData, initData)  -- MUST have both parameters
+  if savedData and savedData.version == 1 then
+    state = savedData.myData
+  end
+end
+
+local function onActive()
+  -- Create HUD here (survives save/load)
+  hudElement = ui.create({ layer = 'HUD', ... })
+  -- Start timers here
+  stopTimer = time.runRepeatedly(myFunc, time.second, { type = time.SimulationTime })
+end
+
+local function onInactive()
+  -- ALWAYS clean up in onInactive
+  if hudElement then hudElement:destroy() hudElement = nil end
+  if stopTimer then stopTimer() stopTimer = nil end
+end
+
+return {
+  engineHandlers = {
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+}
+\`\`\`
+
+### Common mistakes to AVOID:
+- Using onInit for HUD creation (won't survive save/load - use onActive instead)
+- Using onLoad(data) instead of onLoad(savedData, initData)
+- Not cleaning up timers in onInactive (causes resource leaks)
+- Accessing openmw.nearby in onSave or onInactive (will error)
+- Starting timers at module level instead of in onActive
+
 ## CRITICAL Requirements:
 1. **Script Context**: ALWAYS specify which script context (Global/Local/Player) each code belongs to
 2. **Events**: Use core.sendGlobalEvent for Local→Global, object:sendEvent for Global→Local or Local→Local
 3. **Persistence**: Include onSave/onLoad handlers for any stateful scripts
-4. **Interfaces**: Use openmw.interfaces for AI control, combat checks, camera/controls
-5. **Timers**: Use async:registerTimerCallback for save-safe timers
-6. **File Structure**: Include .omwscripts file showing script registration
+4. **Lifecycle**: Use onActive for HUD/timer initialization, onInactive for cleanup, onLoad with proper (savedData, initData) signature
+5. **Interfaces**: Use openmw.interfaces for AI control, combat checks, camera/controls
+6. **Timers**: Use async:registerTimerCallback for save-safe timers; clean up in onInactive
+7. **File Structure**: Include .omwscripts file showing script registration
 
 ## .omwscripts Example Patterns:
 \`\`\`
