@@ -1369,6 +1369,490 @@ return {
 }`
       }
     ]
+  },
+  animationHandlers: {
+    title: "Animation Engine Handlers",
+    description: "Handlers for animation events and custom animation playback (local scripts only)",
+    handlers: [
+      {
+        name: "onAnimationTextKey(groupname, key)",
+        context: "local",
+        description: "Called when an animation reaches a text key marker. Use for syncing effects, sounds, or actions to animation timing.",
+        code: `-- scripts/MyMod/combat_effects.lua
+local self = require('openmw.self')
+local core = require('openmw.core')
+local animation = require('openmw.animation')
+
+-- Animation text keys are markers embedded in NIF files
+-- Common keys: 'start', 'stop', 'hit', 'sound', 'loop start', 'loop stop'
+
+local function onAnimationTextKey(groupname, key)
+  -- groupname: animation group (e.g., 'attackone', 'idle', 'walkforward')
+  -- key: the text key string from the animation file
+  
+  -- Sync weapon trail effect to attack animations
+  if groupname:match('^attack') then
+    if key == 'hit' then
+      -- Animation reached the hit point - apply damage, spawn effects
+      core.sendGlobalEvent('CombatMod_WeaponHit', {
+        actor = self.object,
+        attackType = groupname
+      })
+      
+      -- Play impact sound at this exact moment
+      local ambient = require('openmw.ambient')
+      ambient.playSound('weapon_swish', { volume = 0.8 })
+      
+    elseif key == 'start' then
+      -- Attack wind-up started
+      core.sendGlobalEvent('CombatMod_AttackStart', {
+        actor = self.object,
+        attackType = groupname
+      })
+      
+    elseif key == 'stop' then
+      -- Attack animation finished
+      core.sendGlobalEvent('CombatMod_AttackEnd', {
+        actor = self.object
+      })
+    end
+  end
+  
+  -- Custom text keys for modded animations
+  if key == 'cast_release' then
+    -- Custom key for spell casting
+    core.sendGlobalEvent('MagicMod_SpellRelease', {
+      caster = self.object
+    })
+  elseif key == 'footstep_left' or key == 'footstep_right' then
+    -- Custom footstep sounds
+    playFootstepSound(key)
+  end
+end
+
+return {
+  engineHandlers = { onAnimationTextKey = onAnimationTextKey },
+}`
+      },
+      {
+        name: "animation.playBlended / playQueued / playGroup",
+        context: "local",
+        description: "Play custom animations on actors. Use different methods for blending, queuing, or immediate playback.",
+        code: `-- scripts/MyMod/custom_animations.lua
+local self = require('openmw.self')
+local animation = require('openmw.animation')
+local core = require('openmw.core')
+
+-- Animation priority levels (higher = takes precedence)
+local PRIORITY = {
+  Default = 0,
+  Movement = 1,
+  Hit = 2,
+  Weapon = 3,
+  Knockdown = 4,
+  Scripted = 5,
+  Death = 6
+}
+
+-- Animation bone groups
+local BONE_GROUP = {
+  LowerBody = animation.BONE_GROUP.LowerBody,
+  Torso = animation.BONE_GROUP.Torso,
+  LeftArm = animation.BONE_GROUP.LeftArm,
+  RightArm = animation.BONE_GROUP.RightArm
+}
+
+local function playCustomIdle()
+  -- playGroup: Play animation immediately, replacing current
+  -- Parameters: groupname, priority, options
+  animation.playGroup(self.object, 'idle2', {
+    priority = PRIORITY.Scripted,
+    loops = 0,  -- 0 = loop forever, 1+ = specific count
+    speed = 1.0,
+    autoDisable = true  -- Return to default when done
+  })
+end
+
+local function playAttackCombo()
+  -- playQueued: Add to animation queue, plays after current finishes
+  animation.playQueued(self.object, 'attackone', {
+    priority = PRIORITY.Weapon,
+    loops = 1
+  })
+  
+  -- Queue follow-up attack
+  animation.playQueued(self.object, 'attacktwo', {
+    priority = PRIORITY.Weapon,
+    loops = 1
+  })
+end
+
+local function playBlendedGesture()
+  -- playBlended: Blend with current animation (for layered effects)
+  -- Great for gestures, breathing, secondary motion
+  animation.playBlended(self.object, 'gesture_wave', {
+    priority = PRIORITY.Scripted,
+    boneGroup = BONE_GROUP.RightArm,  -- Only affect right arm
+    blendMask = 1.0,  -- Full blend
+    loops = 1,
+    speed = 1.2
+  })
+end
+
+local function stopAnimation(groupname)
+  -- Stop a specific animation group
+  animation.cancel(self.object, groupname)
+end
+
+local function stopAllScripted()
+  -- Cancel all animations at scripted priority
+  animation.cancelAll(self.object, PRIORITY.Scripted)
+end
+
+-- Check if animation is playing
+local function isAnimating(groupname)
+  local info = animation.getInfo(self.object, groupname)
+  return info ~= nil and info.isPlaying
+end
+
+-- Get current animation time
+local function getAnimationProgress(groupname)
+  local info = animation.getInfo(self.object, groupname)
+  if info then
+    return info.time / info.duration  -- 0.0 to 1.0
+  end
+  return 0
+end
+
+return {
+  eventHandlers = {
+    MyMod_PlayIdle = function() playCustomIdle() end,
+    MyMod_PlayCombo = function() playAttackCombo() end,
+    MyMod_PlayGesture = function() playBlendedGesture() end,
+    MyMod_StopAnimation = function(data) stopAnimation(data.group) end,
+  },
+}`
+      },
+      {
+        name: "Animation State Machine Pattern",
+        context: "local",
+        description: "Complex animation system with state tracking, transitions, and text key synchronization.",
+        code: `-- scripts/MyMod/animation_controller.lua
+local self = require('openmw.self')
+local animation = require('openmw.animation')
+local core = require('openmw.core')
+local time = require('openmw_aux.time')
+
+-- Animation state machine
+local STATE = {
+  IDLE = 'idle',
+  WALKING = 'walking',
+  RUNNING = 'running',
+  COMBAT_IDLE = 'combat_idle',
+  ATTACKING = 'attacking',
+  CASTING = 'casting',
+  STUNNED = 'stunned',
+  CUSTOM = 'custom'
+}
+
+local currentState = STATE.IDLE
+local previousState = nil
+local stateData = {}
+local stopUpdateTimer = nil
+
+-- State transition rules
+local TRANSITIONS = {
+  [STATE.IDLE] = { STATE.WALKING, STATE.RUNNING, STATE.COMBAT_IDLE, STATE.CASTING, STATE.CUSTOM },
+  [STATE.WALKING] = { STATE.IDLE, STATE.RUNNING, STATE.COMBAT_IDLE },
+  [STATE.RUNNING] = { STATE.IDLE, STATE.WALKING, STATE.COMBAT_IDLE },
+  [STATE.COMBAT_IDLE] = { STATE.IDLE, STATE.ATTACKING, STATE.STUNNED },
+  [STATE.ATTACKING] = { STATE.COMBAT_IDLE, STATE.STUNNED },
+  [STATE.CASTING] = { STATE.IDLE, STATE.COMBAT_IDLE },
+  [STATE.STUNNED] = { STATE.IDLE, STATE.COMBAT_IDLE },
+  [STATE.CUSTOM] = { STATE.IDLE }
+}
+
+local function canTransition(from, to)
+  local allowed = TRANSITIONS[from]
+  if not allowed then return false end
+  for _, state in ipairs(allowed) do
+    if state == to then return true end
+  end
+  return false
+end
+
+local function transitionTo(newState, data)
+  if not canTransition(currentState, newState) then
+    return false
+  end
+  
+  previousState = currentState
+  currentState = newState
+  stateData = data or {}
+  
+  -- Play appropriate animation for new state
+  if newState == STATE.IDLE then
+    animation.playGroup(self.object, 'idle', {
+      priority = 1,
+      loops = 0,
+      autoDisable = true
+    })
+  elseif newState == STATE.COMBAT_IDLE then
+    animation.playGroup(self.object, 'idleweapon', {
+      priority = 2,
+      loops = 0
+    })
+  elseif newState == STATE.ATTACKING then
+    local attackAnim = stateData.combo and 'attacktwo' or 'attackone'
+    animation.playGroup(self.object, attackAnim, {
+      priority = 3,
+      loops = 1
+    })
+  elseif newState == STATE.CASTING then
+    animation.playGroup(self.object, 'spellcast', {
+      priority = 3,
+      loops = 1
+    })
+  elseif newState == STATE.STUNNED then
+    animation.playGroup(self.object, 'hit1', {
+      priority = 4,
+      loops = 1
+    })
+  elseif newState == STATE.CUSTOM then
+    animation.playGroup(self.object, stateData.animation or 'idle2', {
+      priority = stateData.priority or 5,
+      loops = stateData.loops or 1,
+      speed = stateData.speed or 1.0
+    })
+  end
+  
+  core.sendGlobalEvent('AnimMod_StateChanged', {
+    actor = self.object,
+    from = previousState,
+    to = newState
+  })
+  
+  return true
+end
+
+-- Handle animation text keys for state transitions
+local function onAnimationTextKey(groupname, key)
+  if key == 'stop' then
+    -- Animation finished - return to appropriate idle
+    if currentState == STATE.ATTACKING then
+      transitionTo(STATE.COMBAT_IDLE, {})
+    elseif currentState == STATE.CASTING then
+      transitionTo(STATE.IDLE, {})
+    elseif currentState == STATE.STUNNED then
+      transitionTo(STATE.COMBAT_IDLE, {})
+    elseif currentState == STATE.CUSTOM then
+      transitionTo(STATE.IDLE, {})
+    end
+  elseif key == 'hit' and currentState == STATE.ATTACKING then
+    -- Trigger hit detection at animation hit point
+    core.sendGlobalEvent('AnimMod_AttackHit', {
+      actor = self.object,
+      attackData = stateData
+    })
+  elseif key == 'cast_release' and currentState == STATE.CASTING then
+    core.sendGlobalEvent('AnimMod_SpellCast', {
+      actor = self.object,
+      spellData = stateData
+    })
+  end
+end
+
+local function onSave()
+  return { 
+    version = 1, 
+    state = currentState, 
+    prevState = previousState 
+  }
+end
+
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then
+    currentState = savedData.state or STATE.IDLE
+    previousState = savedData.prevState
+  end
+end
+
+local function onActive()
+  -- Restore animation state
+  transitionTo(currentState, {})
+end
+
+local function onInactive()
+  if stopUpdateTimer then
+    stopUpdateTimer()
+    stopUpdateTimer = nil
+  end
+end
+
+return {
+  engineHandlers = {
+    onAnimationTextKey = onAnimationTextKey,
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+  eventHandlers = {
+    AnimMod_SetState = function(data)
+      transitionTo(data.state, data)
+    end,
+    AnimMod_Attack = function(data)
+      transitionTo(STATE.ATTACKING, data)
+    end,
+    AnimMod_Cast = function(data)
+      transitionTo(STATE.CASTING, data)
+    end,
+    AnimMod_Stun = function()
+      transitionTo(STATE.STUNNED, {})
+    end,
+    AnimMod_PlayCustom = function(data)
+      transitionTo(STATE.CUSTOM, data)
+    end,
+  },
+}`
+      },
+      {
+        name: "VFX Synced to Animation",
+        context: "local",
+        description: "Spawn visual effects synchronized with animation text keys for precise timing.",
+        code: `-- scripts/MyMod/vfx_sync.lua
+local self = require('openmw.self')
+local core = require('openmw.core')
+local vfx = require('openmw.vfx')
+local util = require('openmw.util')
+local types = require('openmw.types')
+
+-- VFX spawn configurations
+local VFX_CONFIG = {
+  weapon_fire = {
+    mesh = 'meshes/vfx/fire_trail.nif',
+    bone = 'Weapon Bone',
+    scale = 1.0,
+    duration = 0.5
+  },
+  weapon_ice = {
+    mesh = 'meshes/vfx/ice_crystals.nif',
+    bone = 'Weapon Bone',
+    scale = 0.8,
+    duration = 0.4
+  },
+  cast_glow = {
+    mesh = 'meshes/vfx/magic_glow.nif',
+    bone = 'Bip01 R Hand',
+    scale = 1.2,
+    duration = 1.0
+  },
+  hit_spark = {
+    mesh = 'meshes/vfx/hit_sparks.nif',
+    bone = 'Bip01 Spine1',
+    scale = 1.5,
+    duration = 0.3
+  }
+}
+
+local activeVFX = {}
+
+local function spawnBoneVFX(config)
+  -- Spawn VFX attached to actor bone
+  local effect = vfx.spawn(config.mesh, self.object.position, {
+    attachTo = self.object,
+    boneName = config.bone,
+    scale = config.scale
+  })
+  
+  table.insert(activeVFX, {
+    effect = effect,
+    expireTime = core.getSimulationTime() + config.duration
+  })
+end
+
+local function spawnWorldVFX(mesh, position, scale)
+  -- Spawn VFX at world position (not attached)
+  vfx.spawn(mesh, position, { scale = scale })
+end
+
+local function cleanupExpiredVFX()
+  local currentTime = core.getSimulationTime()
+  for i = #activeVFX, 1, -1 do
+    if currentTime >= activeVFX[i].expireTime then
+      -- VFX auto-expire, but we clean our tracking
+      table.remove(activeVFX, i)
+    end
+  end
+end
+
+local function onAnimationTextKey(groupname, key)
+  -- Sync VFX to animation events
+  
+  if groupname:match('^attack') then
+    if key == 'start' then
+      -- Check if weapon has enchantment for trail effect
+      local equipment = types.Actor.getEquipment(self.object)
+      local weapon = equipment[types.Actor.EQUIPMENT_SLOT.CarriedRight]
+      
+      if weapon then
+        local record = types.Weapon.record(weapon)
+        if record.enchantment then
+          -- Spawn appropriate elemental trail
+          local enchantType = getEnchantmentType(record.enchantment)
+          if enchantType == 'fire' then
+            spawnBoneVFX(VFX_CONFIG.weapon_fire)
+          elseif enchantType == 'frost' then
+            spawnBoneVFX(VFX_CONFIG.weapon_ice)
+          end
+        end
+      end
+      
+    elseif key == 'hit' then
+      -- Spawn impact effect at weapon position
+      spawnBoneVFX(VFX_CONFIG.hit_spark)
+    end
+    
+  elseif groupname == 'spellcast' then
+    if key == 'start' then
+      spawnBoneVFX(VFX_CONFIG.cast_glow)
+    elseif key == 'cast_release' then
+      -- Spawn projectile or area effect
+      local spellPos = self.object.position + util.vector3(0, 0, 100)
+      spawnWorldVFX('meshes/vfx/spell_burst.nif', spellPos, 2.0)
+    end
+    
+  elseif key == 'footstep_left' or key == 'footstep_right' then
+    -- Dust/splash effect based on surface
+    local dustMesh = 'meshes/vfx/dust_puff.nif'
+    spawnWorldVFX(dustMesh, self.object.position, 0.5)
+  end
+end
+
+-- Periodic cleanup
+local stopCleanup = nil
+
+local function onActive()
+  stopCleanup = time.runRepeatedly(cleanupExpiredVFX, time.second, { type = time.SimulationTime })
+end
+
+local function onInactive()
+  if stopCleanup then 
+    stopCleanup() 
+    stopCleanup = nil 
+  end
+  activeVFX = {}
+end
+
+return {
+  engineHandlers = {
+    onAnimationTextKey = onAnimationTextKey,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+}`
+      }
+    ]
   }
 };
 
