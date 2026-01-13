@@ -497,6 +497,881 @@ return {
   }
 };
 
+// Engine Handler Templates - Comprehensive examples for all major engine handlers
+const ENGINE_HANDLER_TEMPLATES = {
+  globalHandlers: {
+    title: "Global Script Engine Handlers",
+    description: "Handlers available in global scripts for world-level events",
+    handlers: [
+      {
+        name: "onNewGame()",
+        context: "global",
+        description: "Called once when a new game starts (not on load). Perfect for mod initialization and welcome messages.",
+        code: `-- scripts/MyMod/global.lua
+local world = require('openmw.world')
+local core = require('openmw.core')
+
+local gameState = { initialized = false }
+
+local function onNewGame()
+  -- Called ONCE when starting a new game
+  -- NOT called when loading a save
+  gameState.initialized = true
+  gameState.isNewGame = true
+  
+  -- Send event to player scripts
+  for _, player in ipairs(world.players) do
+    player:sendEvent('MyMod_GameStarted', {
+      timestamp = core.getGameTime(),
+      isNewGame = true
+    })
+  end
+end
+
+-- Reset flag on load so we know it's not a new game
+local function onLoad(savedData, initData)
+  if savedData then
+    gameState = savedData
+  end
+  gameState.isNewGame = false
+end
+
+local function onSave()
+  return gameState
+end
+
+return {
+  engineHandlers = { 
+    onNewGame = onNewGame,
+    onSave = onSave,
+    onLoad = onLoad,
+  },
+}`
+      },
+      {
+        name: "onPlayerAdded(player)",
+        context: "global",
+        description: "Called when player is added to the game world. Triggers on new game AND on save load.",
+        code: `local world = require('openmw.world')
+local types = require('openmw.types')
+
+local function onPlayerAdded(player)
+  -- Called when player spawns into the world
+  -- Happens on new game AND when loading a save
+  
+  -- Grant starting items on new game only
+  if gameState.isNewGame then
+    local inv = types.Actor.inventory(player)
+    local starterItem = world.createObject('my_starter_item', 1)
+    starterItem:moveInto(inv)
+  end
+  
+  -- Always notify player script that we're ready
+  player:sendEvent('MyMod_PlayerReady', {
+    isNewGame = gameState.isNewGame
+  })
+end
+
+return {
+  engineHandlers = { onPlayerAdded = onPlayerAdded },
+}`
+      },
+      {
+        name: "onActorActive(actor)",
+        context: "global",
+        description: "Called when an NPC or Creature enters an active cell. Use for attaching scripts dynamically or checking conditions.",
+        code: `local types = require('openmw.types')
+local core = require('openmw.core')
+
+local function onActorActive(actor)
+  -- Called when NPC or Creature enters active cell
+  -- Use for: dynamic script attachment, condition checks
+  
+  if types.NPC.objectIsInstance(actor) then
+    local record = types.NPC.record(actor)
+    
+    -- Check if this NPC belongs to a specific faction
+    if record.faction == 'thieves_guild' then
+      actor:sendEvent('MyMod_GuildMemberActive', {
+        rank = record.factionRank
+      })
+    end
+    
+    -- Check for specific NPC by record ID
+    if actor.recordId == 'my_special_npc' then
+      core.sendGlobalEvent('MyMod_SpecialNPCFound', {
+        npc = actor,
+        cell = actor.cell
+      })
+    end
+  elseif types.Creature.objectIsInstance(actor) then
+    -- Handle creatures
+    local record = types.Creature.record(actor)
+    if record.type == types.Creature.TYPE.Humanoid then
+      -- Special handling for humanoid creatures
+    end
+  end
+end
+
+return {
+  engineHandlers = { onActorActive = onActorActive },
+}`
+      },
+      {
+        name: "onObjectActive(object) / onItemActive(item)",
+        context: "global",
+        description: "Called when objects/items appear in active cells. Use for detecting dropped quest items or special objects.",
+        code: `local core = require('openmw.core')
+local types = require('openmw.types')
+
+local QUEST_ITEMS = {
+  'my_quest_amulet',
+  'ancient_scroll',
+  'sacred_relic'
+}
+
+local function onObjectActive(object)
+  -- Called when any non-actor object enters active cell
+  -- Includes activators, statics, containers, doors, etc.
+  
+  if object.recordId == 'my_trigger_activator' then
+    -- Enable the trigger's local script
+    core.sendGlobalEvent('MyMod_TriggerActive', {
+      trigger = object,
+      position = object.position
+    })
+  end
+end
+
+local function onItemActive(item)
+  -- Called when items appear in a cell (NOT in inventory)
+  -- Items on ground, in containers as world objects
+  
+  for _, questItemId in ipairs(QUEST_ITEMS) do
+    if item.recordId == questItemId then
+      core.sendGlobalEvent('MyMod_QuestItemSpawned', {
+        item = item,
+        itemId = questItemId,
+        cell = item.cell,
+        position = item.position
+      })
+      break
+    end
+  end
+end
+
+return {
+  engineHandlers = { 
+    onObjectActive = onObjectActive,
+    onItemActive = onItemActive,
+  },
+}`
+      },
+      {
+        name: "onActivate(object, actor)",
+        context: "global",
+        description: "Global activation hook called BEFORE local onActivated. Can block activations by returning false.",
+        code: `local types = require('openmw.types')
+
+-- Track which doors require keys
+local lockedDoors = {
+  ['sealed_vault_door'] = 'vault_key',
+  ['archmage_door'] = 'archmage_staff',
+  ['secret_passage'] = 'guild_token'
+}
+
+local function hasItemInInventory(actor, recordId)
+  local inv = types.Actor.inventory(actor)
+  for _, item in ipairs(inv:getAll()) do
+    if item.recordId == recordId then
+      return true
+    end
+  end
+  return false
+end
+
+local function onActivate(object, actor)
+  -- Called BEFORE the object's local onActivated handler
+  -- Return false to block the activation entirely
+  -- Return true or nil to allow normal activation
+  
+  if types.Door.objectIsInstance(object) then
+    local requiredKey = lockedDoors[object.recordId]
+    
+    if requiredKey then
+      if not hasItemInInventory(actor, requiredKey) then
+        -- Block and notify player
+        if actor.type == types.Player then
+          actor:sendEvent('MyMod_ShowMessage', {
+            text = 'This door requires a special key.'
+          })
+        end
+        return false  -- Block the activation
+      end
+      -- Has key, allow opening
+    end
+  end
+  
+  -- For containers, could check traps, ownership, etc.
+  if types.Container.objectIsInstance(object) then
+    -- Custom container logic
+  end
+  
+  -- Return true or nil to proceed with normal activation
+end
+
+return {
+  engineHandlers = { onActivate = onActivate },
+}`
+      },
+      {
+        name: "onNewExterior(cell)",
+        context: "global",
+        description: "Called when engine generates a new exterior cell not in content files. Use for procedural world generation.",
+        code: `local world = require('openmw.world')
+local core = require('openmw.core')
+local util = require('openmw.util')
+
+local function onNewExterior(cell)
+  -- Called when engine generates new exterior cell
+  -- Only for cells NOT defined in content files
+  -- Use for: procedural content, dynamic world generation
+  
+  local gridX = cell.gridX
+  local gridY = cell.gridY
+  
+  -- Example: Add random wilderness encounters
+  local encounterChance = 0.3
+  if math.random() < encounterChance then
+    -- Calculate center of cell
+    local cellSize = 8192  -- Standard Morrowind cell size
+    local centerX = gridX * cellSize + cellSize / 2
+    local centerY = gridY * cellSize + cellSize / 2
+    
+    -- Spawn a wandering creature
+    local creatures = {'mudcrab', 'cliff_racer', 'kagouti'}
+    local randomCreature = creatures[math.random(#creatures)]
+    
+    local creature = world.createObject(randomCreature, 1)
+    creature:teleport(cell, util.vector3(centerX, centerY, 0))
+  end
+  
+  core.sendGlobalEvent('MyMod_CellGenerated', {
+    cell = cell,
+    gridX = gridX,
+    gridY = gridY
+  })
+end
+
+return {
+  engineHandlers = { onNewExterior = onNewExterior },
+}`
+      }
+    ]
+  },
+  localHandlers: {
+    title: "Local Script Engine Handlers",
+    description: "Handlers for scripts attached to specific actors/objects",
+    handlers: [
+      {
+        name: "onActivated(actor)",
+        context: "local",
+        description: "Called when this object is activated by an actor. The most common local handler.",
+        code: `-- scripts/MyMod/activator.lua
+local self = require('openmw.self')
+local core = require('openmw.core')
+local types = require('openmw.types')
+
+local activationCount = 0
+
+local function onActivated(actor)
+  -- actor is who activated this object
+  -- self.object is this object being activated
+  
+  -- Only respond to player activations
+  if actor.type ~= types.Player then
+    return
+  end
+  
+  activationCount = activationCount + 1
+  
+  -- Different responses based on activation count
+  if activationCount == 1 then
+    actor:sendEvent('MyMod_ShowMessage', {
+      text = 'You notice something strange...'
+    })
+  elseif activationCount == 3 then
+    -- Trigger secret after 3 activations
+    core.sendGlobalEvent('MyMod_SecretRevealed', {
+      object = self.object,
+      discoverer = actor
+    })
+  end
+end
+
+local function onSave()
+  return { version = 1, count = activationCount }
+end
+
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then
+    activationCount = savedData.count
+  end
+end
+
+return {
+  engineHandlers = { 
+    onActivated = onActivated,
+    onSave = onSave,
+    onLoad = onLoad,
+  },
+}`
+      },
+      {
+        name: "onTeleported()",
+        context: "local",
+        description: "Called when the object is teleported via spell, console, or script. Use for updating state after position changes.",
+        code: `-- scripts/MyMod/npc_tracker.lua
+local self = require('openmw.self')
+local core = require('openmw.core')
+
+local lastPosition = nil
+local lastCell = nil
+
+local function onTeleported()
+  -- Called when this object is teleported
+  -- NOT called for normal movement
+  
+  local oldCell = lastCell
+  local newCell = self.object.cell
+  
+  -- Track cell changes
+  core.sendGlobalEvent('MyMod_ActorTeleported', {
+    actor = self.object,
+    fromCell = oldCell,
+    toCell = newCell,
+    newPosition = self.object.position
+  })
+  
+  lastPosition = self.object.position
+  lastCell = newCell
+end
+
+local function onActive()
+  lastPosition = self.object.position
+  lastCell = self.object.cell
+end
+
+return {
+  engineHandlers = { 
+    onTeleported = onTeleported,
+    onActive = onActive,
+  },
+}`
+      },
+      {
+        name: "onConsume(item)",
+        context: "local",
+        description: "Called when this actor consumes an item (potion, ingredient). item.count is already zero.",
+        code: `-- scripts/MyMod/consumption_tracker.lua
+local self = require('openmw.self')
+local core = require('openmw.core')
+local types = require('openmw.types')
+
+local consumedItems = {}
+
+local function onConsume(item)
+  -- Called when actor consumes potion/ingredient
+  -- item.count is already 0 at this point
+  
+  local recordId = item.recordId
+  consumedItems[recordId] = (consumedItems[recordId] or 0) + 1
+  
+  -- Check for poison effects
+  if recordId:match('^poison_') or recordId:match('_poison$') then
+    core.sendGlobalEvent('MyMod_PoisonConsumed', {
+      actor = self.object,
+      poisonId = recordId,
+      totalConsumed = consumedItems[recordId]
+    })
+    return
+  end
+  
+  -- Check for quest potions
+  if recordId == 'my_quest_potion' then
+    core.sendGlobalEvent('MyMod_QuestPotionUsed', {
+      actor = self.object
+    })
+    return
+  end
+  
+  -- Track alchemy ingredients for achievements
+  local ingredientRecord = types.Ingredient.record(item)
+  if ingredientRecord then
+    core.sendGlobalEvent('MyMod_IngredientConsumed', {
+      actor = self.object,
+      ingredient = recordId,
+      effects = ingredientRecord.effects
+    })
+  end
+end
+
+local function onSave()
+  return { version = 1, consumed = consumedItems }
+end
+
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then
+    consumedItems = savedData.consumed
+  end
+end
+
+return {
+  engineHandlers = { 
+    onConsume = onConsume,
+    onSave = onSave,
+    onLoad = onLoad,
+  },
+}`
+      },
+      {
+        name: "onUpdate(dt)",
+        context: "local",
+        description: "Called every frame for game logic. dt is simulation time delta (0 when paused). Use sparingly for performance.",
+        code: `-- scripts/MyMod/patrol_npc.lua
+local self = require('openmw.self')
+local nearby = require('openmw.nearby')
+local core = require('openmw.core')
+local I = require('openmw.interfaces')
+
+local updateTimer = 0
+local UPDATE_INTERVAL = 0.5  -- Check every 0.5 seconds, not every frame
+
+local function onUpdate(dt)
+  -- dt = time since last frame (0 when paused)
+  -- WARNING: Called every frame - keep it lightweight!
+  
+  if dt == 0 then return end  -- Skip when paused
+  
+  -- Throttle expensive operations
+  updateTimer = updateTimer + dt
+  if updateTimer < UPDATE_INTERVAL then
+    return
+  end
+  updateTimer = 0
+  
+  -- Now do the actual logic
+  local nearestPlayer = nil
+  local nearestDist = math.huge
+  
+  for _, player in ipairs(nearby.players) do
+    local dist = (player.position - self.object.position):length()
+    if dist < nearestDist then
+      nearestDist = dist
+      nearestPlayer = player
+    end
+  end
+  
+  if nearestPlayer and nearestDist < 500 then
+    -- Player is close, react
+    core.sendGlobalEvent('MyMod_PlayerNearNPC', {
+      npc = self.object,
+      player = nearestPlayer,
+      distance = nearestDist
+    })
+  end
+end
+
+return {
+  engineHandlers = { onUpdate = onUpdate },
+}`
+      }
+    ]
+  },
+  playerHandlers: {
+    title: "Player Script Engine Handlers",
+    description: "Handlers exclusive to player scripts for input, UI, and player-specific events",
+    handlers: [
+      {
+        name: "onFrame(dt)",
+        context: "player",
+        description: "Called every frame AFTER input processing. Works even when paused (dt=0). Use for latency-critical UI only.",
+        code: `-- scripts/MyMod/player_hud.lua
+local ui = require('openmw.ui')
+local input = require('openmw.input')
+local util = require('openmw.util')
+
+local crosshair = nil
+local mouseX, mouseY = 0.5, 0.5
+
+local function onFrame(dt)
+  -- Called every frame, even when paused (dt=0)
+  -- Use ONLY for: latency-critical UI updates
+  -- WARNING: Heavy operations here = low FPS
+  
+  if crosshair then
+    -- Update crosshair to follow mouse smoothly
+    local mousePos = input.getMousePosition()
+    crosshair.layout.props.relativePosition = mousePos
+    crosshair:update()
+  end
+end
+
+local function createCrosshair()
+  crosshair = ui.create({
+    layer = 'HUD',
+    type = ui.TYPE.Image,
+    props = {
+      resource = 'icons/crosshair.dds',
+      relativeSize = util.vector2(0.02, 0.02),
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5)
+    }
+  })
+end
+
+local function destroyCrosshair()
+  if crosshair then
+    crosshair:destroy()
+    crosshair = nil
+  end
+end
+
+return {
+  engineHandlers = { 
+    onFrame = onFrame,
+    onActive = createCrosshair,
+    onInactive = destroyCrosshair,
+  },
+}`
+      },
+      {
+        name: "onKeyPress(key) / onKeyRelease(key)",
+        context: "player",
+        description: "Keyboard input handlers. key has symbol, code, withAlt, withShift, withCtrl properties.",
+        code: `-- scripts/MyMod/keybinds.lua
+local core = require('openmw.core')
+local input = require('openmw.input')
+local ui = require('openmw.ui')
+
+local heldKeys = {}
+local menuOpen = false
+
+local function onKeyPress(key)
+  -- key.symbol: the key character ('a', 'space', 'escape', etc.)
+  -- key.code: the keyboard scan code
+  -- key.withAlt, key.withShift, key.withCtrl: modifier state at press time
+  
+  heldKeys[key.symbol] = true
+  
+  -- Toggle custom menu with Ctrl+M
+  if key.symbol == 'm' and key.withCtrl then
+    menuOpen = not menuOpen
+    core.sendGlobalEvent('MyMod_ToggleMenu', { open = menuOpen })
+    return
+  end
+  
+  -- Quick spell with Shift+1 through Shift+5
+  if key.withShift then
+    local spellSlot = tonumber(key.symbol)
+    if spellSlot and spellSlot >= 1 and spellSlot <= 5 then
+      core.sendGlobalEvent('MyMod_QuickSpell', { slot = spellSlot })
+      return
+    end
+  end
+  
+  -- Modifier key combination: Alt+H for help
+  if key.symbol == 'h' and key.withAlt then
+    core.sendGlobalEvent('MyMod_ShowHelp', {})
+  end
+end
+
+local function onKeyRelease(key)
+  heldKeys[key.symbol] = nil
+  
+  -- Handle charged abilities (hold to charge, release to fire)
+  if key.symbol == 'r' and not key.withCtrl then
+    local holdTime = getHoldDuration('r')  -- Custom tracking
+    core.sendGlobalEvent('MyMod_ChargedRelease', {
+      power = math.min(holdTime * 10, 100)
+    })
+  end
+end
+
+-- Check if a key is currently held (polling pattern)
+local function isKeyHeld(symbol)
+  return heldKeys[symbol] == true
+end
+
+return {
+  engineHandlers = { 
+    onKeyPress = onKeyPress,
+    onKeyRelease = onKeyRelease,
+  },
+}`
+      },
+      {
+        name: "onMouseButtonPress/Release(button) / onMouseWheel(vertical, horizontal)",
+        context: "player",
+        description: "Mouse input handlers. button is 1=left, 2=middle, 3=right. Wheel values are positive/negative for direction.",
+        code: `-- scripts/MyMod/mouse_controls.lua
+local core = require('openmw.core')
+local nearby = require('openmw.nearby')
+
+local isSelecting = false
+local selectionStart = nil
+
+local function onMouseButtonPress(button)
+  -- button: 1=left, 2=middle, 3=right, 4+=extra buttons
+  
+  if button == 1 then  -- Left click
+    -- Start selection box
+    isSelecting = true
+    selectionStart = input.getMousePosition()
+  elseif button == 3 then  -- Right click
+    -- Context menu or alternate action
+    core.sendGlobalEvent('MyMod_ContextAction', {
+      position = input.getMousePosition()
+    })
+  elseif button == 2 then  -- Middle click
+    -- Quick action (e.g., ping location)
+    core.sendGlobalEvent('MyMod_QuickPing', {})
+  end
+end
+
+local function onMouseButtonRelease(button)
+  if button == 1 and isSelecting then
+    isSelecting = false
+    local selectionEnd = input.getMousePosition()
+    
+    core.sendGlobalEvent('MyMod_SelectionComplete', {
+      start = selectionStart,
+      finish = selectionEnd
+    })
+  end
+end
+
+local function onMouseWheel(vertical, horizontal)
+  -- vertical: positive = scroll up, negative = scroll down
+  -- horizontal: positive = scroll right, negative = scroll left
+  
+  if vertical > 0 then
+    core.sendGlobalEvent('MyMod_ScrollUp', { amount = vertical })
+  elseif vertical < 0 then
+    core.sendGlobalEvent('MyMod_ScrollDown', { amount = -vertical })
+  end
+  
+  -- Horizontal scrolling (less common)
+  if horizontal ~= 0 then
+    core.sendGlobalEvent('MyMod_HorizontalScroll', { amount = horizontal })
+  end
+end
+
+return {
+  engineHandlers = { 
+    onMouseButtonPress = onMouseButtonPress,
+    onMouseButtonRelease = onMouseButtonRelease,
+    onMouseWheel = onMouseWheel,
+  },
+}`
+      },
+      {
+        name: "onControllerButtonPress/Release(id)",
+        context: "player",
+        description: "Gamepad/controller input handlers. Use input.CONTROLLER_BUTTON constants for button IDs.",
+        code: `-- scripts/MyMod/controller_support.lua
+local input = require('openmw.input')
+local core = require('openmw.core')
+
+local sprintActive = false
+
+local function onControllerButtonPress(id)
+  -- id matches input.CONTROLLER_BUTTON constants
+  
+  if id == input.CONTROLLER_BUTTON.LeftStick then
+    -- L3 / Left stick click - toggle sprint
+    sprintActive = not sprintActive
+    core.sendGlobalEvent('MyMod_SetSprint', { active = sprintActive })
+    
+  elseif id == input.CONTROLLER_BUTTON.RightShoulder then
+    -- RB / R1 - next spell/weapon
+    core.sendGlobalEvent('MyMod_CycleSpell', { direction = 1 })
+    
+  elseif id == input.CONTROLLER_BUTTON.LeftShoulder then
+    -- LB / L1 - previous spell/weapon
+    core.sendGlobalEvent('MyMod_CycleSpell', { direction = -1 })
+    
+  elseif id == input.CONTROLLER_BUTTON.Y then
+    -- Y / Triangle - special ability
+    core.sendGlobalEvent('MyMod_SpecialAbility', {})
+    
+  elseif id == input.CONTROLLER_BUTTON.Back then
+    -- Back / Select - open custom menu
+    core.sendGlobalEvent('MyMod_ToggleMenu', { open = true })
+  end
+end
+
+local function onControllerButtonRelease(id)
+  if id == input.CONTROLLER_BUTTON.A then
+    -- A / X button released - end charged jump
+    core.sendGlobalEvent('MyMod_EndChargedJump', {})
+  end
+end
+
+return {
+  engineHandlers = { 
+    onControllerButtonPress = onControllerButtonPress,
+    onControllerButtonRelease = onControllerButtonRelease,
+  },
+}`
+      },
+      {
+        name: "onConsoleCommand(mode, command, selectedObject)",
+        context: "player",
+        description: "Intercept console commands. Return false to consume the command. Useful for debug features and cheats.",
+        code: `-- scripts/MyMod/console_commands.lua
+local core = require('openmw.core')
+local world = require('openmw.world')
+
+local function onConsoleCommand(mode, command, selectedObject)
+  -- mode: 'lua' for commands starting with 'lua', otherwise default
+  -- command: the full command string
+  -- selectedObject: object clicked in console (may be nil)
+  
+  -- Custom commands (prefix with mod name for clarity)
+  if command == 'mymod debug' then
+    core.sendGlobalEvent('MyMod_ToggleDebug', {})
+    print('MyMod: Debug mode toggled')
+    return false  -- Consume command (don't pass to engine)
+  end
+  
+  -- Command with arguments
+  local spawnMatch = command:match('^mymod spawn (.+)$')
+  if spawnMatch then
+    local creatureId = spawnMatch:gsub('%s+$', '')  -- Trim whitespace
+    
+    if selectedObject then
+      -- Spawn at selected object's position
+      core.sendGlobalEvent('MyMod_SpawnAt', {
+        recordId = creatureId,
+        position = selectedObject.position,
+        cell = selectedObject.cell
+      })
+    else
+      print('MyMod: Select an object first to spawn at its location')
+    end
+    return false
+  end
+  
+  -- Give item command
+  local giveMatch = command:match('^mymod give (.+)$')
+  if giveMatch then
+    core.sendGlobalEvent('MyMod_GiveItem', {
+      recordId = giveMatch:gsub('%s+$', '')
+    })
+    return false
+  end
+  
+  -- Return true or nil to let engine handle normally
+end
+
+return {
+  engineHandlers = { onConsoleCommand = onConsoleCommand },
+}`
+      },
+      {
+        name: "onQuestUpdate(questId, stage)",
+        context: "player",
+        description: "Called when any quest is updated. Use for quest-dependent features, achievements, or HUD updates.",
+        code: `-- scripts/MyMod/quest_tracker.lua
+local core = require('openmw.core')
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+
+local questHUD = nil
+local trackedQuests = {}
+
+local QUEST_MILESTONES = {
+  ['main_quest'] = { 10, 30, 50, 80, 100 },
+  ['fighters_guild'] = { 10, 25, 50, 75, 100 },
+  ['mages_guild'] = { 10, 25, 50, 75, 100 },
+}
+
+local function createQuestHUD()
+  questHUD = ui.create({
+    layer = 'HUD',
+    type = ui.TYPE.Text,
+    props = {
+      relativePosition = util.vector2(0.98, 0.02),
+      anchor = util.vector2(1, 0),
+      text = '',
+      textColor = util.color.rgb(0.9, 0.8, 0.6)
+    }
+  })
+end
+
+local function destroyQuestHUD()
+  if questHUD then
+    questHUD:destroy()
+    questHUD = nil
+  end
+end
+
+local function updateQuestHUD()
+  if not questHUD then return end
+  
+  local lines = {}
+  for questId, stage in pairs(trackedQuests) do
+    table.insert(lines, questId .. ': Stage ' .. stage)
+  end
+  
+  questHUD.layout.props.text = table.concat(lines, '\\n')
+  questHUD:update()
+end
+
+local function onQuestUpdate(questId, stage)
+  -- Called whenever ANY quest is updated
+  -- questId = the quest's string ID
+  -- stage = new quest stage number
+  
+  trackedQuests[questId] = stage
+  updateQuestHUD()
+  
+  -- Check for milestones
+  local milestones = QUEST_MILESTONES[questId]
+  if milestones then
+    for _, milestone in ipairs(milestones) do
+      if stage == milestone then
+        core.sendGlobalEvent('MyMod_QuestMilestone', {
+          questId = questId,
+          stage = stage,
+          milestone = milestone
+        })
+        break
+      end
+    end
+  end
+  
+  -- Unlock abilities at certain quest stages
+  if questId == 'main_quest' and stage >= 50 then
+    core.sendGlobalEvent('MyMod_UnlockAbility', {
+      ability = 'prophecy_vision'
+    })
+  end
+end
+
+return {
+  engineHandlers = { 
+    onQuestUpdate = onQuestUpdate,
+    onActive = createQuestHUD,
+    onInactive = destroyQuestHUD,
+  },
+}`
+      }
+    ]
+  }
+};
+
 // Complete .omwscripts file patterns
 const OMWSCRIPTS_PATTERNS = {
   simpleQuest: `# SimpleQuestMod.omwscripts
@@ -2575,6 +3450,16 @@ function buildSystemPrompt(themes: string[]): string {
     multiStageRef += `\n**${pattern.title}:** ${pattern.description}\n`;
   }
 
+  // Build engine handler reference
+  let engineHandlerRef = "\n## Engine Handlers Reference:\n";
+  engineHandlerRef += "Use these handlers to respond to game events. Choose the right handler for the right script context.\n";
+  for (const category of Object.values(ENGINE_HANDLER_TEMPLATES)) {
+    engineHandlerRef += `\n### ${category.title}\n${category.description}\n`;
+    for (const handler of category.handlers) {
+      engineHandlerRef += `- **${handler.name}** (${handler.context}): ${handler.description}\n`;
+    }
+  }
+
   return `You are a creative mod idea generator for OpenMW (Morrowind). Generate unique, immersive, and lore-friendly mod ideas with REAL, WORKING OpenMW Lua code examples that use proper script contexts, interfaces, and events.
 
 Your responses must be valid JSON with this exact structure:
@@ -2652,6 +3537,7 @@ ${scriptContextRef}
 ${interfaceRef}
 ${eventRef}
 ${multiStageRef}
+${engineHandlerRef}
 
 ## Category-Specific Patterns:
 ${categoryContext}
