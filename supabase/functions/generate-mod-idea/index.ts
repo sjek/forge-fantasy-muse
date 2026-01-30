@@ -1853,6 +1853,537 @@ return {
 }`
       }
     ]
+  },
+  soundHandlers: {
+    title: "Sound & Audio Engine Handlers",
+    description: "Audio playback using openmw.ambient (player/menu scripts only). Note: OpenMW Lua does not have 3D positional audio - all sounds are 2D background sounds.",
+    handlers: [
+      {
+        name: "openmw.ambient API Reference",
+        context: "player",
+        description: "Core sound API available in player and menu scripts only. Use for UI sounds, music, voiceovers, and ambient audio.",
+        code: `-- openmw.ambient is ONLY available in player and menu scripts
+-- For sounds triggered by NPCs/creatures, use events to notify player script
+
+local ambient = require('openmw.ambient')
+
+-- Core Sound Functions:
+-- ambient.playSound(soundId, options)       - Play sound by record ID
+-- ambient.playSoundFile(fileName, options)  - Play sound file from VFS
+-- ambient.stopSound(soundId)                - Stop a sound by record ID
+-- ambient.stopSoundFile(fileName)           - Stop a sound file
+-- ambient.isSoundPlaying(soundId)           - Check if sound is playing
+-- ambient.isSoundFilePlaying(fileName)      - Check if file is playing
+
+-- Music Functions:
+-- ambient.streamMusic(fileName, options)    - Play music track
+-- ambient.stopMusic()                       - Stop current music
+-- ambient.isMusicPlaying()                  - Check if music is playing
+
+-- Voice/Dialogue Functions:
+-- ambient.say(fileName, text)               - Play voice with subtitle
+-- ambient.stopSay()                         - Stop voiceover
+-- ambient.isSayActive()                     - Check if voice is playing
+
+-- Sound Options:
+-- { volume = 1.0, pitch = 1.0, loop = false, timeOffset = 0 }
+
+-- Example: Play UI sound on key press
+local function onKeyPress(key)
+  if key.symbol == 'i' then
+    ambient.playSound('menu click', {
+      volume = 0.8,
+      pitch = 1.0,
+      loop = false
+    })
+  end
+end
+
+return {
+  engineHandlers = { onKeyPress = onKeyPress },
+}`
+      },
+      {
+        name: "ambient.streamMusic - Dynamic Music System",
+        context: "player",
+        description: "Control music playback with smooth transitions. Use streamMusic for background music with optional fade effects.",
+        code: `-- scripts/MusicMod/player.lua
+local ambient = require('openmw.ambient')
+local core = require('openmw.core')
+
+local musicState = {
+  currentTrack = nil,
+  currentContext = 'explore'
+}
+
+local MUSIC_TRACKS = {
+  explore = 'Music/Explore/peaceful_day.mp3',
+  combat = 'Music/Combat/battle_01.mp3',
+  dungeon = 'Music/Dungeon/dark_depths.mp3',
+  town = 'Music/Town/market_bustle.mp3'
+}
+
+local function switchMusic(context, fadeTime)
+  if musicState.currentContext == context then return end
+  
+  local track = MUSIC_TRACKS[context]
+  if not track then return end
+  
+  -- streamMusic automatically handles transitions
+  ambient.streamMusic(track, {
+    fadeOut = fadeTime or 2.0  -- Fade out previous track
+  })
+  
+  musicState.currentTrack = track
+  musicState.currentContext = context
+end
+
+local function stopAllMusic()
+  ambient.stopMusic()
+  musicState.currentTrack = nil
+  musicState.currentContext = nil
+end
+
+local function onSave()
+  return { version = 1, music = musicState }
+end
+
+local function onLoad(savedData, initData)
+  if savedData and savedData.version == 1 then
+    musicState = savedData.music
+  end
+end
+
+-- Restore music on script activation
+local function onActive()
+  if musicState.currentTrack then
+    ambient.streamMusic(musicState.currentTrack)
+  end
+end
+
+local function onInactive()
+  -- Music will naturally stop when player script deactivates
+end
+
+return {
+  engineHandlers = {
+    onSave = onSave,
+    onLoad = onLoad,
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+  eventHandlers = {
+    MusicMod_SetContext = function(data)
+      switchMusic(data.context, data.fadeTime)
+    end,
+    MusicMod_CombatStart = function()
+      switchMusic('combat', 1.0)
+    end,
+    MusicMod_CombatEnd = function()
+      switchMusic('explore', 3.0)
+    end,
+    MusicMod_EnterDungeon = function()
+      switchMusic('dungeon', 2.0)
+    end,
+    MusicMod_EnterTown = function()
+      switchMusic('town', 2.0)
+    end,
+  },
+}`
+      },
+      {
+        name: "ambient.say - Voiceover System",
+        context: "player",
+        description: "Play voice files with subtitles. Queue multiple voice lines and manage playback state.",
+        code: `-- scripts/DialogueMod/player.lua
+local ambient = require('openmw.ambient')
+local core = require('openmw.core')
+local time = require('openmw_aux.time')
+
+local voiceQueue = {}
+local stopQueueCheck = nil
+
+local function queueVoiceLine(voiceFile, subtitleText)
+  table.insert(voiceQueue, {
+    file = voiceFile,
+    text = subtitleText
+  })
+end
+
+local function processVoiceQueue()
+  -- Don't start new voice if one is playing
+  if ambient.isSayActive() then return end
+  
+  if #voiceQueue == 0 then return end
+  
+  -- Play next voice in queue
+  local nextVoice = table.remove(voiceQueue, 1)
+  ambient.say(nextVoice.file, nextVoice.text)
+end
+
+local function clearVoiceQueue()
+  voiceQueue = {}
+  ambient.stopSay()
+end
+
+local function onActive()
+  -- Check queue periodically to play next line
+  stopQueueCheck = time.runRepeatedly(
+    processVoiceQueue,
+    0.5,  -- Check every half second
+    { type = time.SimulationTime }
+  )
+end
+
+local function onInactive()
+  if stopQueueCheck then
+    stopQueueCheck()
+    stopQueueCheck = nil
+  end
+  clearVoiceQueue()
+end
+
+return {
+  engineHandlers = {
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+  eventHandlers = {
+    -- Queue a voice line from any script
+    DialogueMod_Say = function(data)
+      queueVoiceLine(data.file, data.text)
+    end,
+    -- Immediately play (interrupting current)
+    DialogueMod_SayImmediate = function(data)
+      clearVoiceQueue()
+      ambient.say(data.file, data.text)
+    end,
+    -- Stop all voice playback
+    DialogueMod_StopSay = function()
+      clearVoiceQueue()
+    end,
+  },
+}`
+      },
+      {
+        name: "Animation-Synced Audio Pattern",
+        context: "local + player",
+        description: "Coordinate audio with animations using cross-script events. Local scripts detect animation keys and notify player script to play sounds.",
+        code: `-- IMPORTANT: openmw.ambient is only available in player scripts
+-- Local scripts must send events to trigger sounds
+
+-- ============================================
+-- scripts/CombatSoundMod/npc.lua (LOCAL SCRIPT)
+-- ============================================
+local self = require('openmw.self')
+local core = require('openmw.core')
+local types = require('openmw.types')
+
+-- Detect animation events and notify player to play sounds
+local function onAnimationTextKey(groupname, key)
+  -- Attack hit sounds
+  if groupname:match('^attack') and key == 'hit' then
+    -- Determine weapon type for appropriate sound
+    local equipment = types.Actor.getEquipment(self.object)
+    local weapon = equipment[types.Actor.EQUIPMENT_SLOT.CarriedRight]
+    local weaponType = 'blunt'  -- default
+    
+    if weapon then
+      local record = types.Weapon.record(weapon)
+      if record.type == types.Weapon.TYPE.ShortBladeOneHand or
+         record.type == types.Weapon.TYPE.LongBladeOneHand or
+         record.type == types.Weapon.TYPE.LongBladeTwoHand then
+        weaponType = 'blade'
+      elseif record.type == types.Weapon.TYPE.AxeOneHand or
+             record.type == types.Weapon.TYPE.AxeTwoHand then
+        weaponType = 'axe'
+      end
+    end
+    
+    -- Notify player script to play sound
+    core.sendGlobalEvent('CombatSoundMod_PlayWeaponSound', {
+      soundType = 'weapon_' .. weaponType,
+      attacker = self.object
+    })
+  end
+  
+  -- Footstep sounds
+  if key == 'footstep_left' or key == 'footstep_right' then
+    core.sendGlobalEvent('CombatSoundMod_PlayFootstep', {
+      actor = self.object
+    })
+  end
+  
+  -- Spell casting sounds
+  if groupname == 'spellcast' and key == 'cast_release' then
+    core.sendGlobalEvent('CombatSoundMod_PlaySpellSound', {
+      caster = self.object
+    })
+  end
+end
+
+return {
+  engineHandlers = { onAnimationTextKey = onAnimationTextKey },
+}
+
+-- ============================================
+-- scripts/CombatSoundMod/global.lua (GLOBAL SCRIPT)
+-- ============================================
+-- Relay events from local scripts to player script
+local world = require('openmw.world')
+
+return {
+  eventHandlers = {
+    CombatSoundMod_PlayWeaponSound = function(data)
+      for _, player in ipairs(world.players) do
+        player:sendEvent('CombatSoundMod_DoPlaySound', {
+          soundId = data.soundType .. '_hit'
+        })
+      end
+    end,
+    CombatSoundMod_PlayFootstep = function(data)
+      for _, player in ipairs(world.players) do
+        player:sendEvent('CombatSoundMod_DoPlaySound', {
+          soundId = 'footstep_default',
+          volume = 0.5
+        })
+      end
+    end,
+    CombatSoundMod_PlaySpellSound = function(data)
+      for _, player in ipairs(world.players) do
+        player:sendEvent('CombatSoundMod_DoPlaySound', {
+          soundId = 'spell_release'
+        })
+      end
+    end,
+  },
+}
+
+-- ============================================
+-- scripts/CombatSoundMod/player.lua (PLAYER SCRIPT)
+-- ============================================
+local ambient = require('openmw.ambient')
+
+return {
+  eventHandlers = {
+    CombatSoundMod_DoPlaySound = function(data)
+      if not ambient.isSoundPlaying(data.soundId) then
+        ambient.playSound(data.soundId, {
+          volume = data.volume or 1.0,
+          pitch = data.pitch or 1.0
+        })
+      end
+    end,
+  },
+}`
+      },
+      {
+        name: "Environmental Audio Layering",
+        context: "player",
+        description: "Layer multiple ambient sounds with volume control for rich environmental audio. Manage multiple simultaneous sounds with dynamic mixing.",
+        code: `-- scripts/AmbientMod/player.lua
+local ambient = require('openmw.ambient')
+local core = require('openmw.core')
+local time = require('openmw_aux.time')
+
+-- Active ambient layers
+local ambientLayers = {}
+local stopLayerUpdate = nil
+
+-- Layer configurations
+local LAYER_CONFIG = {
+  wind = {
+    sounds = { 'wind_light', 'wind_medium', 'wind_strong' },
+    baseVolume = 0.6
+  },
+  rain = {
+    sounds = { 'rain_light', 'rain_medium', 'rain_heavy' },
+    baseVolume = 0.8
+  },
+  wildlife = {
+    sounds = { 'birds_day', 'crickets_night', 'owl_night' },
+    baseVolume = 0.4
+  },
+  water = {
+    sounds = { 'river_flow', 'waterfall_distant', 'ocean_waves' },
+    baseVolume = 0.7
+  }
+}
+
+local function setLayerVolume(layerName, intensity)
+  -- intensity: 0.0 to 1.0
+  local layer = ambientLayers[layerName]
+  if not layer then return end
+  
+  local config = LAYER_CONFIG[layerName]
+  local targetVolume = config.baseVolume * intensity
+  
+  -- Stop current sound if intensity is 0
+  if intensity <= 0 then
+    if layer.currentSound then
+      ambient.stopSound(layer.currentSound)
+      layer.currentSound = nil
+      layer.playing = false
+    end
+    return
+  end
+  
+  -- Select appropriate sound based on intensity
+  local soundIndex = math.ceil(intensity * #config.sounds)
+  soundIndex = math.min(soundIndex, #config.sounds)
+  local soundId = config.sounds[soundIndex]
+  
+  -- Switch to new sound if different
+  if layer.currentSound ~= soundId then
+    if layer.currentSound then
+      ambient.stopSound(layer.currentSound)
+    end
+    ambient.playSound(soundId, {
+      volume = targetVolume,
+      loop = true
+    })
+    layer.currentSound = soundId
+    layer.playing = true
+  end
+  
+  layer.volume = targetVolume
+  layer.intensity = intensity
+end
+
+local function initializeLayers()
+  for layerName, _ in pairs(LAYER_CONFIG) do
+    ambientLayers[layerName] = {
+      currentSound = nil,
+      playing = false,
+      volume = 0,
+      intensity = 0
+    }
+  end
+end
+
+local function stopAllLayers()
+  for layerName, layer in pairs(ambientLayers) do
+    if layer.currentSound then
+      ambient.stopSound(layer.currentSound)
+    end
+  end
+  ambientLayers = {}
+end
+
+local function onActive()
+  initializeLayers()
+end
+
+local function onInactive()
+  stopAllLayers()
+  if stopLayerUpdate then
+    stopLayerUpdate()
+    stopLayerUpdate = nil
+  end
+end
+
+return {
+  engineHandlers = {
+    onActive = onActive,
+    onInactive = onInactive,
+  },
+  eventHandlers = {
+    -- Set a specific layer's intensity (0.0 to 1.0)
+    AmbientMod_SetLayer = function(data)
+      setLayerVolume(data.layer, data.intensity)
+    end,
+    -- Set multiple layers at once
+    AmbientMod_SetEnvironment = function(data)
+      for layerName, intensity in pairs(data.layers) do
+        setLayerVolume(layerName, intensity)
+      end
+    end,
+    -- Fade all layers out
+    AmbientMod_FadeOut = function(data)
+      for layerName, _ in pairs(ambientLayers) do
+        setLayerVolume(layerName, 0)
+      end
+    end,
+  },
+}`
+      },
+      {
+        name: "UI Sound Effects Pattern",
+        context: "player",
+        description: "Play sound effects for UI interactions like button clicks, menu opens, and notifications.",
+        code: `-- scripts/UISoundMod/player.lua
+local ambient = require('openmw.ambient')
+local input = require('openmw.input')
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+
+-- Sound mappings
+local UI_SOUNDS = {
+  click = 'menu click',
+  open = 'scroll',
+  close = 'book close',
+  error = 'enchant fail',
+  success = 'enchant success',
+  notification = 'mysticism hit'
+}
+
+local function playUISound(soundType, options)
+  local soundId = UI_SOUNDS[soundType]
+  if not soundId then return end
+  
+  -- Don't play if already playing (for rapid clicks)
+  if ambient.isSoundPlaying(soundId) then return end
+  
+  ambient.playSound(soundId, {
+    volume = (options and options.volume) or 0.7,
+    pitch = (options and options.pitch) or 1.0
+  })
+end
+
+-- Keyboard shortcuts with sound feedback
+local function onKeyPress(key)
+  -- Tab for inventory with sound
+  if key.symbol == 'tab' then
+    playUISound('open')
+  end
+  
+  -- Escape for menu with close sound
+  if key.symbol == 'escape' then
+    playUISound('close')
+  end
+  
+  -- Custom hotkeys
+  if key.symbol == 'j' and key.withAlt then
+    playUISound('click')
+    -- Toggle journal
+  end
+end
+
+return {
+  engineHandlers = {
+    onKeyPress = onKeyPress,
+  },
+  eventHandlers = {
+    -- Generic UI sound event
+    UISoundMod_PlaySound = function(data)
+      playUISound(data.type, data.options)
+    end,
+    -- Notification sound
+    UISoundMod_Notify = function(data)
+      playUISound('notification')
+    end,
+    -- Error feedback
+    UISoundMod_Error = function()
+      playUISound('error')
+    end,
+    -- Success feedback
+    UISoundMod_Success = function()
+      playUISound('success')
+    end,
+  },
+}`
+      }
+    ]
   }
 };
 
@@ -2769,62 +3300,90 @@ return {
   soundAmbience: {
     name: "Sound & Ambience",
     themes: ["sounds", "ambience", "music"],
-    scriptContext: "local",
+    scriptContext: "player",
     apis: [
-      "core.sound.playSound3d(soundId, object, options) - Play 3D sound",
-      "core.sound.playSound(soundId, options) - Play 2D sound",
-      "core.sound.stopSound(soundId, object) - Stop playing sound",
-      "core.sound.isSoundPlaying(soundId, object) - Check if sound playing",
-      "core.sound.say(fileName, object) - Play voice file"
+      "ambient.playSound(soundId, options) - Play 2D sound by record ID (player/menu only)",
+      "ambient.playSoundFile(fileName, options) - Play sound file from VFS (player/menu only)",
+      "ambient.stopSound(soundId) - Stop a sound by record ID",
+      "ambient.stopSoundFile(fileName) - Stop a sound file",
+      "ambient.isSoundPlaying(soundId) - Check if sound is playing",
+      "ambient.streamMusic(fileName, options) - Play music track with fade",
+      "ambient.stopMusic() - Stop current music",
+      "ambient.say(fileName, text) - Play voice with subtitle",
+      "ambient.isSayActive() - Check if voice is playing"
     ],
     examples: [
       {
-        title: "Ambient Sound Zone (Local Script)",
-        context: "local",
-        code: `-- scripts/AmbientMod/zone.lua
+        title: "Ambient Sound Zone (Event-Based Pattern)",
+        context: "local + player",
+        code: `-- NOTE: openmw.ambient is only available in player scripts
+-- Local scripts must send events to player script for audio playback
+
+-- ============================================
+-- scripts/AmbientMod/zone.lua (LOCAL SCRIPT)
+-- Attached to ambient zone activators in the world
+-- ============================================
 local self = require('openmw.self')
 local core = require('openmw.core')
 local nearby = require('openmw.nearby')
 local time = require('openmw_aux.time')
 
+local ZONE_ID = 'waterfall_zone_1'  -- Unique identifier for this zone
 local AMBIENT_SOUND = 'waterfall_loop'
 local RANGE = 2000
 
-local isPlaying = false
+local playerInRange = false
 local stopDistanceCheck = nil
 
 local function checkPlayerDistance()
+  local wasInRange = playerInRange
+  playerInRange = false
+  
   for _, player in ipairs(nearby.players) do
     local dist = (player.position - self.object.position):length()
     
-    if dist < RANGE and not isPlaying then
-      core.sound.playSound3d(AMBIENT_SOUND, self.object, {
-        loop = true,
-        volume = 1.0,
-        pitch = 1.0
+    if dist < RANGE then
+      playerInRange = true
+      
+      -- Notify player to start sound if just entered
+      if not wasInRange then
+        player:sendEvent('AmbientMod_ZoneEnter', {
+          zoneId = ZONE_ID,
+          soundId = AMBIENT_SOUND,
+          volume = 1.0 - (dist / RANGE)  -- Fade based on distance
+        })
+      end
+    end
+  end
+  
+  -- Notify player to stop sound if just left
+  if wasInRange and not playerInRange then
+    for _, player in ipairs(nearby.players) do
+      player:sendEvent('AmbientMod_ZoneExit', {
+        zoneId = ZONE_ID,
+        soundId = AMBIENT_SOUND
       })
-      isPlaying = true
-    elseif dist >= RANGE and isPlaying then
-      core.sound.stopSound(AMBIENT_SOUND, self.object)
-      isPlaying = false
     end
   end
 end
 
--- onActive: Start distance check timer when script becomes active
 local function onActive()
   stopDistanceCheck = time.runRepeatedly(checkPlayerDistance, time.second, { type = time.SimulationTime })
 end
 
--- onInactive: Stop sound and timer when script becomes inactive
 local function onInactive()
-  if isPlaying then
-    core.sound.stopSound(AMBIENT_SOUND, self.object)
-    isPlaying = false
-  end
   if stopDistanceCheck then 
     stopDistanceCheck() 
     stopDistanceCheck = nil
+  end
+  -- Notify to stop sound when zone deactivates
+  if playerInRange then
+    for _, player in ipairs(nearby.players) do
+      player:sendEvent('AmbientMod_ZoneExit', {
+        zoneId = ZONE_ID,
+        soundId = AMBIENT_SOUND
+      })
+    end
   end
 end
 
@@ -2833,39 +3392,96 @@ return {
     onActive = onActive,
     onInactive = onInactive,
   },
+}
+
+-- ============================================
+-- scripts/AmbientMod/player.lua (PLAYER SCRIPT)
+-- Handles all ambient sound playback
+-- ============================================
+local ambient = require('openmw.ambient')
+
+local activeZones = {}
+
+return {
+  eventHandlers = {
+    AmbientMod_ZoneEnter = function(data)
+      -- Start looping ambient sound for this zone
+      if not activeZones[data.zoneId] then
+        ambient.playSound(data.soundId, {
+          volume = data.volume or 1.0,
+          loop = true
+        })
+        activeZones[data.zoneId] = data.soundId
+      end
+    end,
+    AmbientMod_ZoneExit = function(data)
+      -- Stop ambient sound when leaving zone
+      if activeZones[data.zoneId] then
+        ambient.stopSound(data.soundId)
+        activeZones[data.zoneId] = nil
+      end
+    end,
+  },
+  engineHandlers = {
+    onInactive = function()
+      -- Stop all zone sounds when player script deactivates
+      for zoneId, soundId in pairs(activeZones) do
+        ambient.stopSound(soundId)
+      end
+      activeZones = {}
+    end,
+  },
 }`
       },
       {
         title: "Dynamic Music System (Player Script)",
         context: "player",
         code: `-- scripts/MusicMod/player.lua
-local self = require('openmw.self')
-local core = require('openmw.core')
+local ambient = require('openmw.ambient')
 local I = require('openmw.interfaces')
 local time = require('openmw_aux.time')
 
 local musicState = {
   currentTrack = 'explore',
+  currentFile = nil,
   inCombat = false
 }
 local stopMusicCheck = nil
 
+local MUSIC_TRACKS = {
+  explore = 'Music/Explore/peaceful_01.mp3',
+  combat = 'Music/Combat/battle_01.mp3',
+  dungeon = 'Music/Dungeon/depths_01.mp3'
+}
+
+local function switchMusic(context, fadeTime)
+  if musicState.currentTrack == context then return end
+  
+  local track = MUSIC_TRACKS[context]
+  if not track then return end
+  
+  -- streamMusic handles crossfade automatically
+  ambient.streamMusic(track, {
+    fadeOut = fadeTime or 2.0
+  })
+  
+  musicState.currentTrack = context
+  musicState.currentFile = track
+end
+
 local function updateMusicState()
   local wasInCombat = musicState.inCombat
-  -- Check combat via AI package (I.Combat.isInCombat doesn't exist)
+  -- Check combat via AI package
   local pkg = I.AI and I.AI.getActivePackage()
   musicState.inCombat = pkg and pkg.type == 'Combat' or false
   
   if musicState.inCombat and not wasInCombat then
-    musicState.currentTrack = 'combat'
-    core.sendGlobalEvent('MusicMod_TrackChange', { track = 'combat' })
+    switchMusic('combat', 1.0)
   elseif not musicState.inCombat and wasInCombat then
-    musicState.currentTrack = 'explore'
-    core.sendGlobalEvent('MusicMod_TrackChange', { track = 'explore' })
+    switchMusic('explore', 3.0)
   end
 end
 
--- onSave/onLoad with proper signatures
 local function onSave() 
   return { version = 1, music = musicState } 
 end
@@ -2876,12 +3492,14 @@ local function onLoad(savedData, initData)
   end 
 end
 
--- onActive: Start music state check when script becomes active
 local function onActive()
+  -- Restore music if we had one playing
+  if musicState.currentFile then
+    ambient.streamMusic(musicState.currentFile)
+  end
   stopMusicCheck = time.runRepeatedly(updateMusicState, time.second * 2, { type = time.SimulationTime })
 end
 
--- onInactive: Stop timer when script becomes inactive
 local function onInactive()
   if stopMusicCheck then 
     stopMusicCheck() 
@@ -2896,11 +3514,16 @@ return {
     onActive = onActive,
     onInactive = onInactive,
   },
+  eventHandlers = {
+    MusicMod_SetContext = function(data)
+      switchMusic(data.context, data.fadeTime)
+    end,
+  },
 }`
       }
     ],
     docLinks: [
-      `${DOCS_BASE}/openmw_core.html#sound`
+      `${DOCS_BASE}/openmw_ambient.html`
     ]
   },
   vfxAnimation: {
@@ -4002,6 +4625,33 @@ Your responses must be valid JSON with this exact structure:
 - async:newSimulationTimer(seconds, callback, data) → game-time timer
 - async:newGameTimer(seconds, callback, data) → real-time timer
 - async:newUnsavableGameTimer(seconds, callback, data) → non-persistent timer
+
+### openmw.ambient (Sound & Audio - PLAYER/MENU scripts ONLY)
+**IMPORTANT: There is NO 3D positional audio API in OpenMW Lua. All sounds are 2D background sounds.**
+- ambient.playSound(soundId, options) → Play sound by record ID. Options: { volume, pitch, loop, timeOffset }
+- ambient.playSoundFile(fileName, options) → Play sound file from VFS path
+- ambient.stopSound(soundId) → Stop a playing sound
+- ambient.stopSoundFile(fileName) → Stop a playing sound file
+- ambient.isSoundPlaying(soundId) → Check if sound is currently playing
+- ambient.isSoundFilePlaying(fileName) → Check if file is playing
+- ambient.streamMusic(fileName, options) → Play music with options: { fadeOut = seconds }
+- ambient.stopMusic() → Stop current music
+- ambient.isMusicPlaying() → Check if music is playing
+- ambient.say(fileName, text) → Play voice file with subtitle text
+- ambient.stopSay() → Stop current voiceover
+- ambient.isSayActive() → Check if voiceover is playing
+
+**Cross-Script Audio Pattern:** Since openmw.ambient is player-only, NPCs/creatures must send events to player script:
+\`\`\`lua
+-- Local script (npc.lua)
+core.sendGlobalEvent('MyMod_PlaySound', { soundId = 'weapon_hit' })
+
+-- Global script relays to player
+world.players[1]:sendEvent('MyMod_DoPlaySound', data)
+
+-- Player script plays the sound
+ambient.playSound(data.soundId, { volume = 1.0 })
+\`\`\`
 
 ### openmw_aux.time (Repeating timers)
 - time.runRepeatedly(func, interval, options) → returns stop function
