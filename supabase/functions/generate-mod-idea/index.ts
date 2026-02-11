@@ -2384,6 +2384,893 @@ return {
 }`
       }
     ]
+  },
+  uiHandlers: {
+    title: "UI & Menu Engine Handlers",
+    description: "Complex menu creation using openmw.ui (player and menu scripts only). Covers buttons, scrolling lists, text input, modal dialogs, tab navigation, and dynamic lists.",
+    handlers: [
+      {
+        name: "openmw.ui API Reference",
+        context: "player",
+        description: "Core UI API for creating interactive menus and HUD elements. Available in player and menu scripts only.",
+        code: `-- openmw.ui API Reference
+-- Available in player and menu scripts ONLY
+
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+
+-- ===== Creating UI Elements =====
+-- ui.create(layout) -> element
+--   Creates a new UI element from a layout table. Returns an element handle.
+--   element:update()   -- Refresh after modifying element.layout
+--   element:destroy()  -- Remove element from screen
+
+-- ===== Layout Structure =====
+-- Each layout node is a table with:
+--   type     = ui.TYPE.Widget | ui.TYPE.Text | ui.TYPE.TextEdit | ui.TYPE.Flex | ui.TYPE.Image
+--   props    = { position, size, relativePosition, anchor, visible, ... }
+--   content  = ui.content({...})  -- child elements
+--   events   = { mouseClick = async:callback(fn), ... }
+
+-- ===== Widget Types =====
+-- ui.TYPE.Widget    - Basic container, supports backgrounds via 'resource' prop
+-- ui.TYPE.Text      - Static text display (props: text, textColor, textSize, textAlignH, textAlignV)
+-- ui.TYPE.TextEdit  - Editable text input (props: text, multiline; events: textChanged, keyPress)
+-- ui.TYPE.Flex      - Flex layout container (props: direction, arrange, align, scroll)
+-- ui.TYPE.Image     - Image display (props: resource, tileH, tileV)
+
+-- ===== Layers =====
+-- 'HUD'          - Always visible during gameplay, below menus
+-- 'Windows'      - Modal/interactive windows, captures mouse input
+-- 'Notification' - Temporary popups above everything
+
+-- ===== Positioning =====
+-- props.position         = util.vector2(x, y)  -- Absolute pixel position
+-- props.relativePosition = util.vector2(0-1, 0-1)  -- Relative to parent (0.5 = center)
+-- props.anchor           = util.vector2(0-1, 0-1)  -- Element anchor point
+-- props.size             = util.vector2(width, height)  -- Element size in pixels
+-- props.relativeSize     = util.vector2(0-1, 0-1)  -- Size relative to parent
+
+-- ===== Backgrounds =====
+-- props.resource = ui.WIDGET_BACKGROUND.Segment  -- Standard panel segment
+-- props.resource = ui.WIDGET_BACKGROUND.Panel     -- Full panel background
+-- props.backgroundColor = util.color.rgb(r, g, b)
+
+-- ===== Events =====
+-- All events MUST be wrapped with async:callback()
+-- mouseClick   - Mouse click on element
+-- mouseMove    - Mouse enters/moves over element
+-- focusLoss    - Mouse leaves element / element loses focus
+-- textChanged  - Text changed in TextEdit (event.layout.props.text has new value)
+-- keyPress     - Key pressed while TextEdit focused
+
+-- ===== Flex Layout =====
+-- ui.FLEX_DIRECTION.Vertical / Horizontal
+-- ui.FLEX_ARRANGE.Start / Center / End / SpaceAround / SpaceEvenly
+-- ui.FLEX_ALIGN.Start / Center / End / Stretch
+-- ui.SCROLL.Vertical / Horizontal  -- Enable scrolling in Flex containers
+
+-- ===== Templates (built-in styles) =====
+-- ui.templates.textNormal   - Standard body text
+-- ui.templates.textHeader   - Header text styling
+-- ui.templates.textParagraph - Paragraph text block`
+      },
+      {
+        name: "Interactive Button Menu with Hover States",
+        context: "player",
+        description: "Complete interactive menu with buttons, hover highlighting, click callbacks, and proper input management.",
+        code: `-- scripts/ButtonMenuMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local input = require('openmw.input')
+local I = require('openmw.interfaces')
+
+local menuElement = nil
+local menuOpen = false
+
+-- Reusable button factory with hover effects
+local function createButton(text, callback, yOffset)
+  return {
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, yOffset),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(180, 32),
+      resource = ui.WIDGET_BACKGROUND.Segment,
+      backgroundColor = util.color.rgb(0.3, 0.3, 0.4),
+    },
+    content = ui.content({
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.5),
+          anchor = util.vector2(0.5, 0.5),
+          text = text,
+          textColor = util.color.rgb(1, 1, 1),
+          textAlignH = ui.ALIGNMENT.Center,
+        },
+      },
+    }),
+    events = {
+      mouseClick = async:callback(callback),
+      mouseMove = async:callback(function(e)
+        -- Hover highlight effect
+        e.layout.props.backgroundColor = util.color.rgb(0.4, 0.4, 0.6)
+        e.layout:update()
+      end),
+      focusLoss = async:callback(function(e)
+        -- Reset to normal color
+        e.layout.props.backgroundColor = util.color.rgb(0.3, 0.3, 0.4)
+        e.layout:update()
+      end),
+    },
+  }
+end
+
+local function openMenu()
+  if menuOpen then return end
+  menuOpen = true
+  
+  menuElement = ui.create({
+    layer = 'Windows',
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(250, 300),
+      resource = ui.WIDGET_BACKGROUND.Panel,
+    },
+    content = ui.content({
+      -- Title
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.08),
+          anchor = util.vector2(0.5, 0.5),
+          text = 'Mod Menu',
+          textColor = util.color.rgb(1, 0.85, 0.4),
+          textSize = 20,
+          textAlignH = ui.ALIGNMENT.Center,
+        },
+      },
+      -- Menu buttons
+      createButton('Option 1', function()
+        print('Option 1 selected')
+      end, 0.3),
+      createButton('Option 2', function()
+        print('Option 2 selected')
+      end, 0.5),
+      createButton('Close', function()
+        closeMenu()
+      end, 0.8),
+    }),
+  })
+  
+  -- Capture mouse and disable movement while menu is open
+  I.Controls.overrideMovementControls(true)
+end
+
+local function closeMenu()
+  if not menuOpen then return end
+  menuOpen = false
+  if menuElement then
+    menuElement:destroy()
+    menuElement = nil
+  end
+  I.Controls.overrideMovementControls(false)
+end
+
+local function onKeyPress(key)
+  if key.symbol == 'f5' then
+    if menuOpen then closeMenu() else openMenu() end
+  end
+end
+
+-- onInactive: ALWAYS clean up UI elements
+local function onInactive()
+  closeMenu()
+end
+
+return {
+  engineHandlers = {
+    onKeyPress = onKeyPress,
+    onInactive = onInactive,
+  },
+}`
+      },
+      {
+        name: "Scrollable List with Dynamic Content",
+        context: "player",
+        description: "Vertical scrolling list built with ui.TYPE.Flex, featuring alternating row colors and click-to-select items.",
+        code: `-- scripts/ScrollListMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local I = require('openmw.interfaces')
+
+local listElement = nil
+local selectedItem = nil
+
+local function onItemSelect(item)
+  selectedItem = item
+  print('Selected: ' .. item.name)
+end
+
+local function createScrollableList(items)
+  local listContent = {}
+  for i, item in ipairs(items) do
+    table.insert(listContent, {
+      type = ui.TYPE.Widget,
+      props = {
+        size = util.vector2(280, 40),
+        resource = ui.WIDGET_BACKGROUND.Segment,
+        -- Alternating row colors
+        backgroundColor = (i % 2 == 0)
+          and util.color.rgb(0.25, 0.25, 0.3)
+          or util.color.rgb(0.2, 0.2, 0.25),
+      },
+      content = ui.content({
+        {
+          type = ui.TYPE.Text,
+          props = {
+            relativePosition = util.vector2(0.05, 0.5),
+            anchor = util.vector2(0, 0.5),
+            text = item.name,
+            textColor = util.color.rgb(0.9, 0.9, 0.9),
+          },
+        },
+        {
+          type = ui.TYPE.Text,
+          props = {
+            relativePosition = util.vector2(0.95, 0.5),
+            anchor = util.vector2(1, 0.5),
+            text = item.value or '',
+            textColor = util.color.rgb(0.6, 0.8, 1.0),
+          },
+        },
+      }),
+      events = {
+        mouseClick = async:callback(function()
+          onItemSelect(item)
+        end),
+        mouseMove = async:callback(function(e)
+          e.layout.props.backgroundColor = util.color.rgb(0.35, 0.35, 0.5)
+          e.layout:update()
+        end),
+        focusLoss = async:callback(function(e)
+          local idx = e.layout._index or i
+          e.layout.props.backgroundColor = (idx % 2 == 0)
+            and util.color.rgb(0.25, 0.25, 0.3)
+            or util.color.rgb(0.2, 0.2, 0.25)
+          e.layout:update()
+        end),
+      },
+    })
+  end
+
+  return {
+    type = ui.TYPE.Flex,
+    props = {
+      size = util.vector2(300, 400),
+      arrange = ui.FLEX_ARRANGE.Start,
+      direction = ui.FLEX_DIRECTION.Vertical,
+      -- Enable vertical scrolling for overflow content
+      scroll = ui.SCROLL.Vertical,
+    },
+    content = ui.content(listContent),
+  }
+end
+
+local function showList()
+  local items = {
+    { name = 'Iron Sword', value = '25g' },
+    { name = 'Steel Shield', value = '80g' },
+    { name = 'Health Potion', value = '15g' },
+    { name = 'Scroll of Fire', value = '120g' },
+    { name = 'Leather Boots', value = '35g' },
+    { name = 'Silver Ring', value = '200g' },
+    { name = 'Enchanted Robe', value = '350g' },
+    { name = 'Daedric Helm', value = '1500g' },
+  }
+
+  listElement = ui.create({
+    layer = 'Windows',
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(320, 450),
+      resource = ui.WIDGET_BACKGROUND.Panel,
+    },
+    content = ui.content({
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.05),
+          anchor = util.vector2(0.5, 0),
+          text = 'Inventory',
+          textColor = util.color.rgb(1, 0.85, 0.4),
+          textSize = 18,
+        },
+      },
+      {
+        type = ui.TYPE.Widget,
+        props = {
+          relativePosition = util.vector2(0.5, 0.12),
+          anchor = util.vector2(0.5, 0),
+          size = util.vector2(300, 380),
+        },
+        content = ui.content({ createScrollableList(items) }),
+      },
+    }),
+  })
+
+  I.Controls.overrideMovementControls(true)
+end
+
+local function onInactive()
+  if listElement then listElement:destroy() listElement = nil end
+end
+
+return {
+  engineHandlers = { onInactive = onInactive },
+}`
+      },
+      {
+        name: "Text Input Field with Submit Handling",
+        context: "player",
+        description: "Editable text input using ui.TYPE.TextEdit with change tracking and submit-on-enter behavior.",
+        code: `-- scripts/InputMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local I = require('openmw.interfaces')
+
+local inputElement = nil
+local inputValue = ''
+
+local function onInputSubmit(value)
+  print('Submitted: ' .. value)
+  -- Process the input value
+end
+
+local function createTextInput(labelText, yPos)
+  return {
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, yPos),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(220, 50),
+    },
+    content = ui.content({
+      -- Label above input
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0, 0),
+          anchor = util.vector2(0, 0),
+          text = labelText,
+          textColor = util.color.rgb(0.8, 0.8, 0.8),
+          textSize = 14,
+        },
+      },
+      -- Text input field
+      {
+        type = ui.TYPE.TextEdit,
+        props = {
+          relativePosition = util.vector2(0, 0.5),
+          anchor = util.vector2(0, 0),
+          size = util.vector2(220, 28),
+          multiline = false,
+          text = '',
+          textColor = util.color.rgb(1, 1, 1),
+        },
+        events = {
+          textChanged = async:callback(function(event)
+            inputValue = event.layout.props.text
+          end),
+          keyPress = async:callback(function(event, key)
+            if key.symbol == 'return' then
+              onInputSubmit(inputValue)
+            end
+          end),
+        },
+      },
+    }),
+  }
+end
+
+local function showInputDialog()
+  inputValue = ''
+  inputElement = ui.create({
+    layer = 'Windows',
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(280, 180),
+      resource = ui.WIDGET_BACKGROUND.Panel,
+    },
+    content = ui.content({
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.1),
+          anchor = util.vector2(0.5, 0.5),
+          text = 'Enter Value',
+          textColor = util.color.rgb(1, 0.85, 0.4),
+          textSize = 18,
+        },
+      },
+      createTextInput('Name:', 0.45),
+      -- Submit button
+      {
+        type = ui.TYPE.Widget,
+        props = {
+          relativePosition = util.vector2(0.5, 0.85),
+          anchor = util.vector2(0.5, 0.5),
+          size = util.vector2(100, 28),
+          resource = ui.WIDGET_BACKGROUND.Segment,
+          backgroundColor = util.color.rgb(0.2, 0.5, 0.3),
+        },
+        content = ui.content({
+          {
+            type = ui.TYPE.Text,
+            props = {
+              relativePosition = util.vector2(0.5, 0.5),
+              anchor = util.vector2(0.5, 0.5),
+              text = 'Submit',
+              textColor = util.color.rgb(1, 1, 1),
+            },
+          },
+        }),
+        events = {
+          mouseClick = async:callback(function()
+            onInputSubmit(inputValue)
+            if inputElement then inputElement:destroy() inputElement = nil end
+            I.Controls.overrideMovementControls(false)
+          end),
+        },
+      },
+    }),
+  })
+
+  I.Controls.overrideMovementControls(true)
+end
+
+local function onInactive()
+  if inputElement then inputElement:destroy() inputElement = nil end
+end
+
+return {
+  engineHandlers = { onInactive = onInactive },
+}`
+      },
+      {
+        name: "Modal Confirm/Cancel Dialog",
+        context: "player",
+        description: "Reusable modal dialog pattern with confirm and cancel buttons. Manages input focus and cleans up properly.",
+        code: `-- scripts/DialogMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local I = require('openmw.interfaces')
+
+local activeDialog = nil
+
+local function showConfirmDialog(message, onConfirm, onCancel)
+  -- Destroy any existing dialog first
+  if activeDialog then activeDialog:destroy() end
+
+  activeDialog = ui.create({
+    layer = 'Windows',
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(320, 160),
+      resource = ui.WIDGET_BACKGROUND.Panel,
+    },
+    content = ui.content({
+      -- Message text
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.3),
+          anchor = util.vector2(0.5, 0.5),
+          text = message,
+          textColor = util.color.rgb(0.9, 0.9, 0.9),
+          textAlignH = ui.ALIGNMENT.Center,
+        },
+      },
+      -- Confirm button
+      {
+        type = ui.TYPE.Widget,
+        props = {
+          relativePosition = util.vector2(0.3, 0.75),
+          anchor = util.vector2(0.5, 0.5),
+          size = util.vector2(100, 28),
+          resource = ui.WIDGET_BACKGROUND.Segment,
+          backgroundColor = util.color.rgb(0.2, 0.5, 0.3),
+        },
+        content = ui.content({
+          {
+            type = ui.TYPE.Text,
+            props = {
+              relativePosition = util.vector2(0.5, 0.5),
+              anchor = util.vector2(0.5, 0.5),
+              text = 'Confirm',
+              textColor = util.color.rgb(1, 1, 1),
+            },
+          },
+        }),
+        events = {
+          mouseClick = async:callback(function()
+            if onConfirm then onConfirm() end
+            activeDialog:destroy()
+            activeDialog = nil
+            I.Controls.overrideMovementControls(false)
+          end),
+        },
+      },
+      -- Cancel button
+      {
+        type = ui.TYPE.Widget,
+        props = {
+          relativePosition = util.vector2(0.7, 0.75),
+          anchor = util.vector2(0.5, 0.5),
+          size = util.vector2(100, 28),
+          resource = ui.WIDGET_BACKGROUND.Segment,
+          backgroundColor = util.color.rgb(0.5, 0.2, 0.2),
+        },
+        content = ui.content({
+          {
+            type = ui.TYPE.Text,
+            props = {
+              relativePosition = util.vector2(0.5, 0.5),
+              anchor = util.vector2(0.5, 0.5),
+              text = 'Cancel',
+              textColor = util.color.rgb(1, 1, 1),
+            },
+          },
+        }),
+        events = {
+          mouseClick = async:callback(function()
+            if onCancel then onCancel() end
+            activeDialog:destroy()
+            activeDialog = nil
+            I.Controls.overrideMovementControls(false)
+          end),
+        },
+      },
+    }),
+  })
+
+  -- Capture input while dialog is shown
+  I.Controls.overrideMovementControls(true)
+  return activeDialog
+end
+
+-- Usage example:
+-- showConfirmDialog('Delete this item?',
+--   function() print('Confirmed!') end,
+--   function() print('Cancelled!') end
+-- )
+
+local function onInactive()
+  if activeDialog then activeDialog:destroy() activeDialog = nil end
+end
+
+return {
+  engineHandlers = { onInactive = onInactive },
+}`
+      },
+      {
+        name: "Tab Navigation System",
+        context: "player",
+        description: "Tabbed interface with content switching. Demonstrates rebuilding UI content dynamically when tabs change.",
+        code: `-- scripts/TabMenuMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local I = require('openmw.interfaces')
+
+local tabElement = nil
+local activeTab = 'stats'
+
+local TAB_CONFIG = {
+  { id = 'stats', label = 'Stats' },
+  { id = 'items', label = 'Items' },
+  { id = 'quests', label = 'Quests' },
+}
+
+-- Content generators for each tab
+local function getStatsContent()
+  return {
+    type = ui.TYPE.Text,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      text = 'Player Statistics\\nHealth: 100\\nMagicka: 50\\nStamina: 75',
+      textColor = util.color.rgb(0.9, 0.9, 0.9),
+    },
+  }
+end
+
+local function getItemsContent()
+  return {
+    type = ui.TYPE.Text,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      text = 'Inventory Items\\nIron Sword x1\\nHealth Potion x5',
+      textColor = util.color.rgb(0.9, 0.9, 0.9),
+    },
+  }
+end
+
+local function getQuestsContent()
+  return {
+    type = ui.TYPE.Text,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      text = 'Active Quests\\nFind the Lost Artifact\\nDeliver the Message',
+      textColor = util.color.rgb(0.9, 0.9, 0.9),
+    },
+  }
+end
+
+local TAB_CONTENT = {
+  stats = getStatsContent,
+  items = getItemsContent,
+  quests = getQuestsContent,
+}
+
+local function buildTabMenu()
+  -- Build tab buttons
+  local tabButtons = {}
+  for i, tab in ipairs(TAB_CONFIG) do
+    local isActive = (tab.id == activeTab)
+    table.insert(tabButtons, {
+      type = ui.TYPE.Widget,
+      props = {
+        size = util.vector2(100, 32),
+        resource = ui.WIDGET_BACKGROUND.Segment,
+        backgroundColor = isActive
+          and util.color.rgb(0.4, 0.4, 0.5)
+          or util.color.rgb(0.25, 0.25, 0.3),
+      },
+      content = ui.content({
+        {
+          type = ui.TYPE.Text,
+          props = {
+            relativePosition = util.vector2(0.5, 0.5),
+            anchor = util.vector2(0.5, 0.5),
+            text = tab.label,
+            textColor = isActive
+              and util.color.rgb(1, 0.85, 0.4)
+              or util.color.rgb(0.7, 0.7, 0.7),
+          },
+        },
+      }),
+      events = {
+        mouseClick = async:callback(function()
+          activeTab = tab.id
+          rebuildMenu()
+        end),
+      },
+    })
+  end
+
+  -- Tab bar (horizontal flex)
+  local tabBar = {
+    type = ui.TYPE.Flex,
+    props = {
+      relativePosition = util.vector2(0.5, 0),
+      anchor = util.vector2(0.5, 0),
+      direction = ui.FLEX_DIRECTION.Horizontal,
+      arrange = ui.FLEX_ARRANGE.Center,
+    },
+    content = ui.content(tabButtons),
+  }
+
+  -- Content area
+  local contentFn = TAB_CONTENT[activeTab]
+  local contentArea = {
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0),
+      relativeSize = util.vector2(0.95, 0.75),
+    },
+    content = ui.content({ contentFn() }),
+  }
+
+  return ui.content({ tabBar, contentArea })
+end
+
+local function rebuildMenu()
+  if not tabElement then return end
+  -- Rebuild content and update
+  tabElement.layout.content = buildTabMenu()
+  tabElement:update()
+end
+
+local function openTabMenu()
+  tabElement = ui.create({
+    layer = 'Windows',
+    type = ui.TYPE.Widget,
+    props = {
+      relativePosition = util.vector2(0.5, 0.5),
+      anchor = util.vector2(0.5, 0.5),
+      size = util.vector2(350, 400),
+      resource = ui.WIDGET_BACKGROUND.Panel,
+    },
+    content = buildTabMenu(),
+  })
+  I.Controls.overrideMovementControls(true)
+end
+
+local function onInactive()
+  if tabElement then tabElement:destroy() tabElement = nil end
+end
+
+return {
+  engineHandlers = { onInactive = onInactive },
+}`
+      },
+      {
+        name: "Dynamic List with Add/Remove",
+        context: "player",
+        description: "Manage a dynamic list with add and remove functionality. Demonstrates rebuilding UI content after data changes.",
+        code: `-- scripts/DynamicListMod/player.lua
+local ui = require('openmw.ui')
+local util = require('openmw.util')
+local async = require('openmw.async')
+local I = require('openmw.interfaces')
+
+local listElement = nil
+local listItems = {}
+local nextId = 1
+
+local function removeItem(id)
+  for i, item in ipairs(listItems) do
+    if item.id == id then
+      table.remove(listItems, i)
+      break
+    end
+  end
+  rebuildList()
+end
+
+local function addItem(name)
+  table.insert(listItems, { id = nextId, name = name })
+  nextId = nextId + 1
+  rebuildList()
+end
+
+local function createListItem(item, index)
+  return {
+    type = ui.TYPE.Flex,
+    props = {
+      direction = ui.FLEX_DIRECTION.Horizontal,
+      arrange = ui.FLEX_ARRANGE.SpaceBetween,
+      align = ui.FLEX_ALIGN.Center,
+      size = util.vector2(260, 36),
+    },
+    content = ui.content({
+      -- Item name
+      {
+        type = ui.TYPE.Text,
+        props = {
+          text = index .. '. ' .. item.name,
+          textColor = util.color.rgb(0.9, 0.9, 0.9),
+        },
+      },
+      -- Delete button
+      {
+        type = ui.TYPE.Widget,
+        props = {
+          size = util.vector2(24, 24),
+          resource = ui.WIDGET_BACKGROUND.Segment,
+          backgroundColor = util.color.rgb(0.5, 0.2, 0.2),
+        },
+        content = ui.content({
+          {
+            type = ui.TYPE.Text,
+            props = {
+              relativePosition = util.vector2(0.5, 0.5),
+              anchor = util.vector2(0.5, 0.5),
+              text = 'X',
+              textColor = util.color.rgb(1, 0.5, 0.5),
+            },
+          },
+        }),
+        events = {
+          mouseClick = async:callback(function()
+            removeItem(item.id)
+          end),
+        },
+      },
+    }),
+  }
+end
+
+function rebuildList()
+  if not listElement then return end
+
+  local rows = {}
+  for i, item in ipairs(listItems) do
+    table.insert(rows, createListItem(item, i))
+  end
+
+  -- Add "Add Item" button at bottom
+  table.insert(rows, {
+    type = ui.TYPE.Widget,
+    props = {
+      size = util.vector2(260, 32),
+      resource = ui.WIDGET_BACKGROUND.Segment,
+      backgroundColor = util.color.rgb(0.2, 0.4, 0.3),
+    },
+    content = ui.content({
+      {
+        type = ui.TYPE.Text,
+        props = {
+          relativePosition = util.vector2(0.5, 0.5),
+          anchor = util.vector2(0.5, 0.5),
+          text = '+ Add Item',
+          textColor = util.color.rgb(0.7, 1, 0.7),
+        },
+      },
+    }),
+    events = {
+      mouseClick = async:callback(function()
+        addItem('New Item #' .. nextId)
+      end),
+    },
+  })
+
+  -- Rebuild the list content
+  listElement.layout.content = ui.content({
+    {
+      type = ui.TYPE.Text,
+      props = {
+        relativePosition = util.vector2(0.5, 0.05),
+        anchor = util.vector2(0.5, 0),
+        text = 'My List (' .. #listItems .. ' items)',
+        textColor = util.color.rgb(1, 0.85, 0.4),
+        textSize = 16,
+      },
+    },
+    {
+      type = ui.TYPE.Flex,
+      props = {
+        relativePosition = util.vector2(0.5, 0.15),
+        anchor = util.vector2(0.5, 0),
+        direction = ui.FLEX_DIRECTION.Vertical,
+        arrange = ui.FLEX_ARRANGE.Start,
+        scroll = ui.SCROLL.Vertical,
+        size = util.vector2(280, 300),
+      },
+      content = ui.content(rows),
+    },
+  })
+  listElement:update()
+end
+
+local function onInactive()
+  if listElement then listElement:destroy() listElement = nil end
+  listItems = {}
+end
+
+return {
+  engineHandlers = { onInactive = onInactive },
+}`
+      }
+    ]
   }
 };
 
@@ -4729,6 +5616,46 @@ return {
 - Not cleaning up timers in onInactive (causes resource leaks)
 - Accessing openmw.nearby in onSave or onInactive (will error)
 - Starting timers at module level instead of in onActive
+
+## openmw.ui - UI Creation API (Player/Menu Scripts Only)
+
+The openmw.ui module allows creating interactive menus, HUD overlays, and dialogs.
+
+### Key Concepts:
+- **Layers**: 'HUD' (always visible, below menus), 'Windows' (modal menus, captures mouse), 'Notification' (popups above all)
+- **Widget Types**: ui.TYPE.Widget (container), ui.TYPE.Text (display text), ui.TYPE.TextEdit (editable input), ui.TYPE.Flex (flex layout), ui.TYPE.Image
+- **Events**: ALL UI events MUST be wrapped with async:callback(). Supported: mouseClick, mouseMove, focusLoss, textChanged, keyPress
+- **Content**: Use ui.content({...}) to create child element arrays
+- **Positioning**: Use relativePosition + anchor for centered/relative layouts, or position for absolute pixel placement
+- **Backgrounds**: props.resource = ui.WIDGET_BACKGROUND.Panel or .Segment; props.backgroundColor = util.color.rgb(r,g,b)
+
+### Content Rebuilding Pattern:
+\`\`\`lua
+-- To update UI after data changes:
+element.layout.content = ui.content({ newChildren })
+element:update()
+\`\`\`
+
+### Input Management:
+\`\`\`lua
+-- When opening modal menus, capture input:
+I.Controls.overrideMovementControls(true)
+-- When closing menus, release input:
+I.Controls.overrideMovementControls(false)
+\`\`\`
+
+### Cleanup Rule:
+ALWAYS destroy UI elements in onInactive handler:
+\`\`\`lua
+local function onInactive()
+  if myElement then myElement:destroy() myElement = nil end
+end
+\`\`\`
+
+### Flex Layout:
+- direction: ui.FLEX_DIRECTION.Vertical / Horizontal
+- arrange: ui.FLEX_ARRANGE.Start / Center / End / SpaceAround / SpaceEvenly
+- scroll: ui.SCROLL.Vertical / Horizontal (enables scrolling in overflow containers)
 
 ## CRITICAL Requirements:
 1. **Script Context**: ALWAYS specify which script context (Global/Local/Player) each code belongs to
