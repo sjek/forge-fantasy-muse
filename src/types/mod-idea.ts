@@ -87,3 +87,42 @@ export interface GeneratorFormData {
   apiPackages?: ApiPackage[];
   customNotes?: string;
 }
+
+// Story Board Types
+export type StoryType = 'quest-line' | 'npc-backstory' | 'lore-entry' | 'world-event' | 'faction-history';
+export type StoryTone = 'epic' | 'dark' | 'comedic' | 'mysterious' | 'tragic';
+export type StoryComplexity = 'short-tale' | 'multi-act-saga' | 'epic-chronicle';
+
+export interface StoryAct {
+  title: string;
+  description: string;
+  keyEvents: string[];
+}
+
+export interface StoryCharacter {
+  name: string;
+  role: string;
+  description: string;
+}
+
+export interface StoryEntry {
+  id: string;
+  title: string;
+  synopsis: string;
+  acts: StoryAct[];
+  characters: StoryCharacter[];
+  loreNotes: string[];
+  connections: string[];
+  storyType: StoryType;
+  tone: StoryTone;
+  themes: ThemeTag[];
+  createdAt: string;
+}
+
+export interface StoryFormData {
+  storyType: StoryType;
+  themes: ThemeTag[];
+  tone: StoryTone;
+  complexity: StoryComplexity;
+  setting?: string;
+}
