@@ -205,6 +205,11 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
         <Button variant="outline" size="sm" onClick={handleShare} className="font-display text-xs uppercase tracking-wider">
           {copied ? <Check className="h-4 w-4" /> : <><Share2 className="mr-1.5 h-4 w-4" />Share</>}
         </Button>
+        {onConvertToMod && (
+          <Button variant="outline" size="sm" onClick={() => onConvertToMod(story)} className="font-display text-xs uppercase tracking-wider">
+            <Wand2 className="mr-1.5 h-4 w-4" />Mod
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
