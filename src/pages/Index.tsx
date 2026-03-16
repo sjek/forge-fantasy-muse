@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wand2, Scroll, BookOpen } from 'lucide-react';
 import { Header } from '@/components/forge/Header';
-import { GeneratorForm } from '@/components/forge/GeneratorForm';
+import { GeneratorForm, GeneratorPrefill } from '@/components/forge/GeneratorForm';
 import { ModIdeaCard } from '@/components/forge/ModIdeaCard';
 import { SavedIdeasPanel } from '@/components/forge/SavedIdeasPanel';
 import { StoryForm } from '@/components/forge/StoryForm';
