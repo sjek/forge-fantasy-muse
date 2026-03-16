@@ -96,13 +96,20 @@ const CONTEXT_COLORS: Record<ScriptContext, string> = {
   'Varies': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
 };
 
+export interface GeneratorPrefill {
+  themes: ThemeTag[];
+  complexity: Complexity;
+  customNotes: string;
+}
+
 interface GeneratorFormProps {
   onGenerate: (data: GeneratorFormData) => void;
   onRandomGenerate: () => void;
   isGenerating: boolean;
+  prefill?: GeneratorPrefill | null;
 }
 
-export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: GeneratorFormProps) {
+export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating, prefill }: GeneratorFormProps) {
   const [gameType, setGameType] = useState<GameType>('rpg');
   const [selectedThemes, setSelectedThemes] = useState<ThemeTag[]>([]);
   const [selectedApiPackages, setSelectedApiPackages] = useState<ApiPackage[]>([]);
