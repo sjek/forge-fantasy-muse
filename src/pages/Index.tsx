@@ -33,9 +33,11 @@ export default function Index() {
   };
 
   const handleConvertStoryToMod = (story: StoryEntry) => {
+    const actsCount = story.acts.length;
+    const complexity: Complexity = actsCount <= 1 ? 'simple' : actsCount <= 3 ? 'quest-mod' : 'overhaul';
     setGeneratorPrefill({
       themes: story.themes,
-      complexity: COMPLEXITY_MAP[story.tone] || 'quest-mod',
+      complexity,
       customNotes: `Based on story: "${story.title}"\n\n${story.synopsis}`,
     });
     setActiveTab('generator');
