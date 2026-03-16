@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wand2, Dices, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -96,13 +96,20 @@ const CONTEXT_COLORS: Record<ScriptContext, string> = {
   'Varies': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
 };
 
+export interface GeneratorPrefill {
+  themes: ThemeTag[];
+  complexity: Complexity;
+  customNotes: string;
+}
+
 interface GeneratorFormProps {
   onGenerate: (data: GeneratorFormData) => void;
   onRandomGenerate: () => void;
   isGenerating: boolean;
+  prefill?: GeneratorPrefill | null;
 }
 
-export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: GeneratorFormProps) {
+export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating, prefill }: GeneratorFormProps) {
   const [gameType, setGameType] = useState<GameType>('rpg');
   const [selectedThemes, setSelectedThemes] = useState<ThemeTag[]>([]);
   const [selectedApiPackages, setSelectedApiPackages] = useState<ApiPackage[]>([]);
@@ -117,6 +124,15 @@ export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating }: Ge
         : [...prev, theme]
     );
   };
+
+  useEffect(() => {
+    if (prefill) {
+      setSelectedThemes(prefill.themes);
+      const sliderVal = prefill.complexity === 'simple' ? 25 : prefill.complexity === 'quest-mod' ? 50 : 100;
+      setComplexityValue([sliderVal]);
+      setCustomNotes(prefill.customNotes);
+    }
+  }, [prefill]);
 
   const toggleApiPackage = (pkg: ApiPackage) => {
     setSelectedApiPackages((prev) =>

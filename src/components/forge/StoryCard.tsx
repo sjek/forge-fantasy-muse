@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ interface StoryCardProps {
   isSaved: boolean;
   onSave: () => void;
   onRemove: () => void;
+  onConvertToMod?: (story: StoryEntry) => void;
 }
 
 const TONE_COLORS: Record<string, string> = {
@@ -31,7 +32,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, isSaved, onSave, onRemove }: StoryCardProps) {
+export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
@@ -204,6 +205,11 @@ export function StoryCard({ story, isSaved, onSave, onRemove }: StoryCardProps) 
         <Button variant="outline" size="sm" onClick={handleShare} className="font-display text-xs uppercase tracking-wider">
           {copied ? <Check className="h-4 w-4" /> : <><Share2 className="mr-1.5 h-4 w-4" />Share</>}
         </Button>
+        {onConvertToMod && (
+          <Button variant="outline" size="sm" onClick={() => onConvertToMod(story)} className="font-display text-xs uppercase tracking-wider">
+            <Wand2 className="mr-1.5 h-4 w-4" />Mod
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

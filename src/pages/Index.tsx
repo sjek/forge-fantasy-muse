@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wand2, Scroll, BookOpen } from 'lucide-react';
 import { Header } from '@/components/forge/Header';
-import { GeneratorForm } from '@/components/forge/GeneratorForm';
+import { GeneratorForm, GeneratorPrefill } from '@/components/forge/GeneratorForm';
 import { ModIdeaCard } from '@/components/forge/ModIdeaCard';
 import { SavedIdeasPanel } from '@/components/forge/SavedIdeasPanel';
 import { StoryForm } from '@/components/forge/StoryForm';
@@ -11,7 +11,7 @@ import { StoryCard } from '@/components/forge/StoryCard';
 import { SavedStoriesPanel } from '@/components/forge/SavedStoriesPanel';
 import { useSavedIdeas } from '@/hooks/useSavedIdeas';
 import { useSavedStories } from '@/hooks/useSavedStories';
-import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData } from '@/types/mod-idea';
+import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData, Complexity } from '@/types/mod-idea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,9 +20,29 @@ export default function Index() {
   const [generatedStory, setGeneratedStory] = useState<StoryEntry | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [activeTab, setActiveTab] = useState('generator');
+  const [generatorPrefill, setGeneratorPrefill] = useState<GeneratorPrefill | null>(null);
   const { savedIdeas, saveIdea, removeIdea, isIdeaSaved, clearAllIdeas } = useSavedIdeas();
   const { savedStories, saveStory, removeStory, isStorySaved, clearAllStories } = useSavedStories();
   const { toast } = useToast();
+
+  const COMPLEXITY_MAP: Record<string, Complexity> = {
+    'short-tale': 'simple',
+    'multi-act-saga': 'quest-mod',
+    'epic-chronicle': 'overhaul',
+  };
+
+  const handleConvertStoryToMod = (story: StoryEntry) => {
+    const actsCount = story.acts.length;
+    const complexity: Complexity = actsCount <= 1 ? 'simple' : actsCount <= 3 ? 'quest-mod' : 'overhaul';
+    setGeneratorPrefill({
+      themes: story.themes,
+      complexity,
+      customNotes: `Based on story: "${story.title}"\n\n${story.synopsis}`,
+    });
+    setActiveTab('generator');
+    toast({ title: "Story Loaded", description: `"${story.title}" themes and details pre-filled in the Generator.` });
+  };
 
   const generateIdea = async (data: GeneratorFormData | { isRandom: true }) => {
     setIsGenerating(true);
@@ -63,7 +83,7 @@ export default function Index() {
       <div className="container max-w-6xl mx-auto px-4 pb-12">
         <Header />
 
-        <Tabs defaultValue="generator" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="generator" className="font-display flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
@@ -91,6 +111,7 @@ export default function Index() {
                     onGenerate={(data) => generateIdea(data)}
                     onRandomGenerate={() => generateIdea({ isRandom: true })}
                     isGenerating={isGenerating}
+                    prefill={generatorPrefill}
                   />
                 </CardContent>
               </Card>
@@ -151,6 +172,7 @@ export default function Index() {
                     isSaved={isStorySaved(generatedStory.id)}
                     onSave={() => saveStory(generatedStory)}
                     onRemove={() => removeStory(generatedStory.id)}
+                    onConvertToMod={handleConvertStoryToMod}
                   />
                 ) : (
                   <Card className="medieval-border bg-card/50 parchment-texture">
@@ -179,6 +201,7 @@ export default function Index() {
               stories={savedStories}
               onRemoveStory={removeStory}
               onClearAll={clearAllStories}
+              onConvertToMod={handleConvertStoryToMod}
             />
           </TabsContent>
         </Tabs>
