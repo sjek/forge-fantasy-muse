@@ -4,6 +4,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StoryEntry } from '@/types/mod-idea';
 import { copyToClipboard } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +15,7 @@ interface StoryCardProps {
   isSaved: boolean;
   onSave: () => void;
   onRemove: () => void;
-  onConvertToMod?: (story: StoryEntry) => void;
+  onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
 }
 
 const TONE_COLORS: Record<string, string> = {
