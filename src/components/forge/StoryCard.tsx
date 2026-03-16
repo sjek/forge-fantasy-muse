@@ -32,7 +32,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, isSaved, onSave, onRemove }: StoryCardProps) {
+export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
