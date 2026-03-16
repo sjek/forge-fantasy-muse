@@ -39,7 +39,28 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [selectedConnections, setSelectedConnections] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const toggleConnection = (conn: string) => {
+    setSelectedConnections((prev) =>
+      prev.includes(conn) ? prev.filter((c) => c !== conn) : [...prev, conn]
+    );
+  };
+
+  const handleConvertConfirm = () => {
+    if (onConvertToMod && selectedConnections.length > 0) {
+      onConvertToMod(story, selectedConnections);
+      setConvertDialogOpen(false);
+      setSelectedConnections([]);
+    }
+  };
+
+  const openConvertDialog = () => {
+    setSelectedConnections([]);
+    setConvertDialogOpen(true);
+  };
 
   const handleShare = async () => {
     const text = formatStoryAsText(story);
