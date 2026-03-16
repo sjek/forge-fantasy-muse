@@ -11,7 +11,7 @@ import { StoryCard } from '@/components/forge/StoryCard';
 import { SavedStoriesPanel } from '@/components/forge/SavedStoriesPanel';
 import { useSavedIdeas } from '@/hooks/useSavedIdeas';
 import { useSavedStories } from '@/hooks/useSavedStories';
-import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData } from '@/types/mod-idea';
+import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData, Complexity } from '@/types/mod-idea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
