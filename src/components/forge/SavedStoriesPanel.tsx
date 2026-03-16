@@ -13,7 +13,7 @@ interface SavedStoriesPanelProps {
   stories: StoryEntry[];
   onRemoveStory: (id: string) => void;
   onClearAll: () => void;
-  onConvertToMod?: (story: StoryEntry) => void;
+  onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
 }
 
 const STORY_TYPES: { value: StoryType; label: string }[] = [
