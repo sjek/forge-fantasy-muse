@@ -81,7 +81,7 @@ export default function Index() {
       <div className="container max-w-6xl mx-auto px-4 pb-12">
         <Header />
 
-        <Tabs defaultValue="generator" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="generator" className="font-display flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
