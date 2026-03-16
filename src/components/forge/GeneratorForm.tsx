@@ -125,6 +125,15 @@ export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating, pref
     );
   };
 
+  useEffect(() => {
+    if (prefill) {
+      setSelectedThemes(prefill.themes);
+      const sliderVal = prefill.complexity === 'simple' ? 25 : prefill.complexity === 'quest-mod' ? 50 : 100;
+      setComplexityValue([sliderVal]);
+      setCustomNotes(prefill.customNotes);
+    }
+  }, [prefill]);
+
   const toggleApiPackage = (pkg: ApiPackage) => {
     setSelectedApiPackages((prev) =>
       prev.includes(pkg)

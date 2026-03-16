@@ -133,6 +133,7 @@ export function SavedStoriesPanel({ stories, onRemoveStory, onClearAll, onConver
               isSaved={true}
               onSave={() => {}}
               onRemove={() => onRemoveStory(story.id)}
+              onConvertToMod={onConvertToMod}
             />
           ))}
         </div>

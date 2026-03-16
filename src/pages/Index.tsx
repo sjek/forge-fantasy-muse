@@ -199,6 +199,7 @@ export default function Index() {
               stories={savedStories}
               onRemoveStory={removeStory}
               onClearAll={clearAllStories}
+              onConvertToMod={handleConvertStoryToMod}
             />
           </TabsContent>
         </Tabs>
