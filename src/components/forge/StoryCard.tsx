@@ -13,6 +13,7 @@ interface StoryCardProps {
   isSaved: boolean;
   onSave: () => void;
   onRemove: () => void;
+  onConvertToMod?: (story: StoryEntry) => void;
 }
 
 const TONE_COLORS: Record<string, string> = {
