@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
