@@ -109,6 +109,7 @@ export default function Index() {
                     onGenerate={(data) => generateIdea(data)}
                     onRandomGenerate={() => generateIdea({ isRandom: true })}
                     isGenerating={isGenerating}
+                    prefill={generatorPrefill}
                   />
                 </CardContent>
               </Card>
