@@ -228,12 +228,48 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
         <Button variant="outline" size="sm" onClick={handleShare} className="font-display text-xs uppercase tracking-wider">
           {copied ? <Check className="h-4 w-4" /> : <><Share2 className="mr-1.5 h-4 w-4" />Share</>}
         </Button>
-        {onConvertToMod && (
-          <Button variant="outline" size="sm" onClick={() => onConvertToMod(story)} className="font-display text-xs uppercase tracking-wider">
+        {onConvertToMod && story.connections.length > 0 && (
+          <Button variant="outline" size="sm" onClick={openConvertDialog} className="font-display text-xs uppercase tracking-wider">
             <Wand2 className="mr-1.5 h-4 w-4" />Mod
           </Button>
         )}
       </CardFooter>
+
+      {/* Convert to Mod Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="medieval-border bg-card parchment-texture max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">Convert to Mod Idea</DialogTitle>
+            <DialogDescription className="font-body text-sm text-muted-foreground">
+              Select which mod connections to use as the basis for your mod idea.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-[300px] overflow-y-auto">
+            {story.connections.map((conn, idx) => (
+              <label
+                key={idx}
+                className="flex items-start gap-3 p-3 rounded-md bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
+              >
+                <Checkbox
+                  checked={selectedConnections.includes(conn)}
+                  onCheckedChange={() => toggleConnection(conn)}
+                  className="mt-0.5"
+                />
+                <span className="font-body text-sm text-foreground/90">{conn}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)} className="font-display text-xs uppercase tracking-wider">
+              Cancel
+            </Button>
+            <Button onClick={handleConvertConfirm} disabled={selectedConnections.length === 0} className="font-display text-xs uppercase tracking-wider">
+              <Wand2 className="mr-1.5 h-4 w-4" />
+              Forge ({selectedConnections.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
