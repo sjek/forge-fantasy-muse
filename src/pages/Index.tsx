@@ -32,16 +32,17 @@ export default function Index() {
     'epic-chronicle': 'overhaul',
   };
 
-  const handleConvertStoryToMod = (story: StoryEntry) => {
+  const handleConvertStoryToMod = (story: StoryEntry, selectedConnections: string[]) => {
     const actsCount = story.acts.length;
     const complexity: Complexity = actsCount <= 1 ? 'simple' : actsCount <= 3 ? 'quest-mod' : 'overhaul';
+    const connectionsText = selectedConnections.map((c, i) => `${i + 1}. ${c}`).join('\n');
     setGeneratorPrefill({
       themes: story.themes,
       complexity,
-      customNotes: `Based on story: "${story.title}"\n\n${story.synopsis}`,
+      customNotes: `Based on story: "${story.title}"\n\nSelected mod connections:\n${connectionsText}`,
     });
     setActiveTab('generator');
-    toast({ title: "Story Loaded", description: `"${story.title}" themes and details pre-filled in the Generator.` });
+    toast({ title: "Story Loaded", description: `${selectedConnections.length} mod connection(s) pre-filled in the Generator.` });
   };
 
   const generateIdea = async (data: GeneratorFormData | { isRandom: true }) => {
