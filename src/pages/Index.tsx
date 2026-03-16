@@ -20,9 +20,27 @@ export default function Index() {
   const [generatedStory, setGeneratedStory] = useState<StoryEntry | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [activeTab, setActiveTab] = useState('generator');
+  const [generatorPrefill, setGeneratorPrefill] = useState<GeneratorPrefill | null>(null);
   const { savedIdeas, saveIdea, removeIdea, isIdeaSaved, clearAllIdeas } = useSavedIdeas();
   const { savedStories, saveStory, removeStory, isStorySaved, clearAllStories } = useSavedStories();
   const { toast } = useToast();
+
+  const COMPLEXITY_MAP: Record<string, Complexity> = {
+    'short-tale': 'simple',
+    'multi-act-saga': 'quest-mod',
+    'epic-chronicle': 'overhaul',
+  };
+
+  const handleConvertStoryToMod = (story: StoryEntry) => {
+    setGeneratorPrefill({
+      themes: story.themes,
+      complexity: COMPLEXITY_MAP[story.tone] || 'quest-mod',
+      customNotes: `Based on story: "${story.title}"\n\n${story.synopsis}`,
+    });
+    setActiveTab('generator');
+    toast({ title: "Story Loaded", description: `"${story.title}" themes and details pre-filled in the Generator.` });
+  };
 
   const generateIdea = async (data: GeneratorFormData | { isRandom: true }) => {
     setIsGenerating(true);
