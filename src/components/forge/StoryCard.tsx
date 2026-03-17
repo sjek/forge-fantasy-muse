@@ -337,6 +337,30 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
 }
 
 function formatStoryAsText(story: StoryEntry): string {
+  if (story.proseText) {
+    return `═══════════════════════════════════════════════════
+📖 ${story.title}
+═══════════════════════════════════════════════════
+
+${story.synopsis}
+
+📝 Narrative:
+${story.proseText}
+
+💡 Key Points:
+${(story.keyPoints || []).map((p) => `  • ${p}`).join('\n')}
+
+📚 Lore Notes:
+${story.loreNotes.map((n) => `  • ${n}`).join('\n')}
+
+⚙️ Mod Connections:
+${story.connections.map((c) => `  • ${c}`).join('\n')}
+
+🏷️ Type: ${story.storyType} | Tone: ${story.tone}
+🏷️ Themes: ${story.themes.join(', ')}
+📅 Created: ${new Date(story.createdAt).toLocaleDateString()}`;
+  }
+
   const acts = story.acts.map((a, i) => {
     const events = a.keyEvents.map((e) => `    ✦ ${e}`).join('\n');
     return `  Act ${i + 1}: ${a.title}\n  ${a.description}\n${events}`;
@@ -358,6 +382,14 @@ ${chars}
 
 📚 Lore Notes:
 ${story.loreNotes.map((n) => `  • ${n}`).join('\n')}
+
+⚙️ Mod Connections:
+${story.connections.map((c) => `  • ${c}`).join('\n')}
+
+🏷️ Type: ${story.storyType} | Tone: ${story.tone}
+🏷️ Themes: ${story.themes.join(', ')}
+📅 Created: ${new Date(story.createdAt).toLocaleDateString()}`;
+}
 
 ⚙️ Mod Connections:
 ${story.connections.map((c) => `  • ${c}`).join('\n')}
