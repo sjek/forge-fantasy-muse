@@ -83,6 +83,7 @@ export function StoryForm({ onGenerate, onRandomGenerate, isGenerating }: StoryF
       tone,
       complexity: getComplexity(),
       setting: setting || undefined,
+      format,
     });
   };
 
