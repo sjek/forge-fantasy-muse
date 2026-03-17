@@ -39,6 +39,8 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
+  const [isKeyPointsOpen, setIsKeyPointsOpen] = useState(false);
+  const [isProseOpen, setIsProseOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedConnections, setSelectedConnections] = useState<string[]>([]);
