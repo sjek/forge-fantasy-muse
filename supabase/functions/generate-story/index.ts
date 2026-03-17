@@ -131,7 +131,7 @@ ${format === 'prose' ? 'Write an immersive, literary prose narrative. Extract ke
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.85,
