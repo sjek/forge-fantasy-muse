@@ -89,6 +89,39 @@ export function StoryForm({ onGenerate, onRandomGenerate, isGenerating }: StoryF
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Format Toggle */}
+      <div className="space-y-2">
+        <Label className="font-display text-sm uppercase tracking-wider text-foreground">
+          Format
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            variant={format === 'structured' ? 'default' : 'outline'}
+            className={`cursor-pointer transition-all font-body ${
+              format === 'structured'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'hover:bg-secondary'
+            }`}
+            onClick={() => setFormat('structured')}
+          >
+            <FileText className="mr-1 h-3 w-3" />
+            Structured
+          </Badge>
+          <Badge
+            variant={format === 'prose' ? 'default' : 'outline'}
+            className={`cursor-pointer transition-all font-body ${
+              format === 'prose'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'hover:bg-secondary'
+            }`}
+            onClick={() => setFormat('prose')}
+          >
+            <AlignLeft className="mr-1 h-3 w-3" />
+            Prose / Book
+          </Badge>
+        </div>
+      </div>
+
       {/* Story Type */}
       <div className="space-y-2">
         <Label className="font-display text-sm uppercase tracking-wider text-foreground">
