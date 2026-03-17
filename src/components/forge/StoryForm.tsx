@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { BookOpen, Dices, Loader2 } from 'lucide-react';
+import { BookOpen, Dices, Loader2, FileText, AlignLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { StoryType, StoryTone, StoryComplexity, ThemeTag, StoryFormData } from '@/types/mod-idea';
+import { StoryType, StoryTone, StoryComplexity, StoryFormat, ThemeTag, StoryFormData } from '@/types/mod-idea';
 
 const STORY_TYPES: { value: StoryType; label: string; icon: string }[] = [
   { value: 'quest-line', label: 'Quest Line', icon: '📜' },
@@ -60,6 +60,7 @@ export function StoryForm({ onGenerate, onRandomGenerate, isGenerating }: StoryF
   const [selectedThemes, setSelectedThemes] = useState<ThemeTag[]>([]);
   const [complexityValue, setComplexityValue] = useState([50]);
   const [setting, setSetting] = useState('');
+  const [format, setFormat] = useState<StoryFormat>('structured');
 
   const toggleTheme = (theme: ThemeTag) => {
     setSelectedThemes((prev) =>
@@ -82,11 +83,45 @@ export function StoryForm({ onGenerate, onRandomGenerate, isGenerating }: StoryF
       tone,
       complexity: getComplexity(),
       setting: setting || undefined,
+      format,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Format Toggle */}
+      <div className="space-y-2">
+        <Label className="font-display text-sm uppercase tracking-wider text-foreground">
+          Format
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            variant={format === 'structured' ? 'default' : 'outline'}
+            className={`cursor-pointer transition-all font-body ${
+              format === 'structured'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'hover:bg-secondary'
+            }`}
+            onClick={() => setFormat('structured')}
+          >
+            <FileText className="mr-1 h-3 w-3" />
+            Structured
+          </Badge>
+          <Badge
+            variant={format === 'prose' ? 'default' : 'outline'}
+            className={`cursor-pointer transition-all font-body ${
+              format === 'prose'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'hover:bg-secondary'
+            }`}
+            onClick={() => setFormat('prose')}
+          >
+            <AlignLeft className="mr-1 h-3 w-3" />
+            Prose / Book
+          </Badge>
+        </div>
+      </div>
+
       {/* Story Type */}
       <div className="space-y-2">
         <Label className="font-display text-sm uppercase tracking-wider text-foreground">

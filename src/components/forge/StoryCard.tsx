@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2 } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StoryEntry } from '@/types/mod-idea';
@@ -38,6 +39,8 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
+  const [isKeyPointsOpen, setIsKeyPointsOpen] = useState(false);
+  const [isProseOpen, setIsProseOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedConnections, setSelectedConnections] = useState<string[]>([]);
@@ -101,6 +104,12 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
           <Badge variant="secondary" className="font-body text-xs">
             {STORY_TYPE_LABELS[story.storyType] || story.storyType}
           </Badge>
+          {story.proseText && (
+            <Badge variant="secondary" className="font-body text-xs">
+              <AlignLeft className="mr-1 h-3 w-3" />
+              Prose
+            </Badge>
+          )}
           {story.themes.map((tag) => (
             <Badge key={tag} variant="secondary" className="font-body text-xs capitalize">
               {tag}
@@ -112,63 +121,116 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
       <CardContent className="space-y-4">
         <p className="font-body text-foreground/90 leading-relaxed">{story.synopsis}</p>
 
-        {/* Acts */}
-        <Collapsible open={isActsOpen} onOpenChange={setIsActsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
-              <span className="flex items-center gap-1.5">
-                <ScrollText className="h-4 w-4" />
-                Story Acts ({story.acts.length})
-              </span>
-              {isActsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-3">
-            {story.acts.map((act, idx) => (
-              <div key={idx} className="bg-secondary/50 rounded-md p-3 space-y-1.5">
-                <h5 className="font-display text-sm font-semibold text-foreground">
-                  Act {idx + 1}: {act.title}
-                </h5>
-                <p className="font-body text-sm text-muted-foreground">{act.description}</p>
-                {act.keyEvents.length > 0 && (
-                  <ul className="space-y-1 mt-2">
-                    {act.keyEvents.map((event, eIdx) => (
-                      <li key={eIdx} className="flex items-start gap-2 font-body text-xs text-foreground/80">
-                        <span className="text-gold mt-0.5">✦</span>
-                        {event}
-                      </li>
+        {/* Prose Text (for prose format) */}
+        {story.proseText ? (
+          <>
+            <Collapsible open={isProseOpen} onOpenChange={setIsProseOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <AlignLeft className="h-4 w-4" />
+                    Full Narrative
+                  </span>
+                  {isProseOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <ScrollArea className="max-h-[400px]">
+                  <div className="bg-secondary/50 rounded-md p-4 space-y-3">
+                    {story.proseText.split('\n\n').map((paragraph, idx) => (
+                      <p key={idx} className="font-body text-sm text-foreground/90 leading-relaxed indent-4 first:indent-0">
+                        {paragraph}
+                      </p>
                     ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Characters */}
-        {story.characters.length > 0 && (
-          <Collapsible open={isCharsOpen} onOpenChange={setIsCharsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  Characters ({story.characters.length})
-                </span>
-                {isCharsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 space-y-2">
-              {story.characters.map((char, idx) => (
-                <div key={idx} className="bg-secondary/50 rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-display text-sm font-semibold text-foreground">{char.name}</span>
-                    <Badge variant="outline" className="text-[10px] font-body">{char.role}</Badge>
                   </div>
-                  <p className="font-body text-xs text-muted-foreground">{char.description}</p>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
+                </ScrollArea>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Key Points */}
+            {story.keyPoints && story.keyPoints.length > 0 && (
+              <Collapsible open={isKeyPointsOpen} onOpenChange={setIsKeyPointsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Lightbulb className="h-4 w-4" />
+                      Key Points ({story.keyPoints.length})
+                    </span>
+                    {isKeyPointsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1.5">
+                  {story.keyPoints.map((point, idx) => (
+                    <div key={idx} className="flex items-start gap-2 bg-secondary/50 rounded-md p-2">
+                      <span className="text-gold mt-0.5">💡</span>
+                      <p className="font-body text-sm text-foreground/85">{point}</p>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Acts (structured format) */}
+            <Collapsible open={isActsOpen} onOpenChange={setIsActsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <ScrollText className="h-4 w-4" />
+                    Story Acts ({story.acts.length})
+                  </span>
+                  {isActsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 space-y-3">
+                {story.acts.map((act, idx) => (
+                  <div key={idx} className="bg-secondary/50 rounded-md p-3 space-y-1.5">
+                    <h5 className="font-display text-sm font-semibold text-foreground">
+                      Act {idx + 1}: {act.title}
+                    </h5>
+                    <p className="font-body text-sm text-muted-foreground">{act.description}</p>
+                    {act.keyEvents.length > 0 && (
+                      <ul className="space-y-1 mt-2">
+                        {act.keyEvents.map((event, eIdx) => (
+                          <li key={eIdx} className="flex items-start gap-2 font-body text-xs text-foreground/80">
+                            <span className="text-gold mt-0.5">✦</span>
+                            {event}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Characters */}
+            {story.characters.length > 0 && (
+              <Collapsible open={isCharsOpen} onOpenChange={setIsCharsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Users className="h-4 w-4" />
+                      Characters ({story.characters.length})
+                    </span>
+                    {isCharsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-2">
+                  {story.characters.map((char, idx) => (
+                    <div key={idx} className="bg-secondary/50 rounded-md p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-display text-sm font-semibold text-foreground">{char.name}</span>
+                        <Badge variant="outline" className="text-[10px] font-body">{char.role}</Badge>
+                      </div>
+                      <p className="font-body text-xs text-muted-foreground">{char.description}</p>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
         )}
 
         {/* Lore Notes */}
@@ -275,6 +337,30 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
 }
 
 function formatStoryAsText(story: StoryEntry): string {
+  if (story.proseText) {
+    return `═══════════════════════════════════════════════════
+📖 ${story.title}
+═══════════════════════════════════════════════════
+
+${story.synopsis}
+
+📝 Narrative:
+${story.proseText}
+
+💡 Key Points:
+${(story.keyPoints || []).map((p) => `  • ${p}`).join('\n')}
+
+📚 Lore Notes:
+${story.loreNotes.map((n) => `  • ${n}`).join('\n')}
+
+⚙️ Mod Connections:
+${story.connections.map((c) => `  • ${c}`).join('\n')}
+
+🏷️ Type: ${story.storyType} | Tone: ${story.tone}
+🏷️ Themes: ${story.themes.join(', ')}
+📅 Created: ${new Date(story.createdAt).toLocaleDateString()}`;
+  }
+
   const acts = story.acts.map((a, i) => {
     const events = a.keyEvents.map((e) => `    ✦ ${e}`).join('\n');
     return `  Act ${i + 1}: ${a.title}\n  ${a.description}\n${events}`;

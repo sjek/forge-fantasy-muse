@@ -92,6 +92,7 @@ export interface GeneratorFormData {
 export type StoryType = 'quest-line' | 'npc-backstory' | 'lore-entry' | 'world-event' | 'faction-history';
 export type StoryTone = 'epic' | 'dark' | 'comedic' | 'mysterious' | 'tragic';
 export type StoryComplexity = 'short-tale' | 'multi-act-saga' | 'epic-chronicle';
+export type StoryFormat = 'structured' | 'prose';
 
 export interface StoryAct {
   title: string;
@@ -117,6 +118,8 @@ export interface StoryEntry {
   tone: StoryTone;
   themes: ThemeTag[];
   createdAt: string;
+  proseText?: string;
+  keyPoints?: string[];
 }
 
 export interface StoryFormData {
@@ -125,4 +128,5 @@ export interface StoryFormData {
   tone: StoryTone;
   complexity: StoryComplexity;
   setting?: string;
+  format?: StoryFormat;
 }

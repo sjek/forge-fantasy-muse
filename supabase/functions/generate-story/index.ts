@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `You are a master storyteller and loremaster specializing in medieval fantasy world-building, with deep knowledge of The Elder Scrolls series (especially Morrowind) and classic RPG narratives.
+const STRUCTURED_SYSTEM_PROMPT = `You are a master storyteller and loremaster specializing in medieval fantasy world-building, with deep knowledge of The Elder Scrolls series (especially Morrowind) and classic RPG narratives.
 
 You generate structured narrative content for game modders who want rich storylines, NPC backstories, lore entries, and world events to implement in OpenMW mods.
 
@@ -56,6 +56,45 @@ COMPLEXITY GUIDELINES:
 
 CRITICAL: Return ONLY the JSON object. No markdown, no code fences, no explanation.`;
 
+const PROSE_SYSTEM_PROMPT = `You are a master storyteller and loremaster specializing in medieval fantasy world-building, with deep knowledge of The Elder Scrolls series (especially Morrowind) and classic RPG narratives.
+
+You write immersive essay/book-style prose narratives for game modders. Your writing should read like an in-world book, chronicle, or literary piece that could exist within the game world itself.
+
+When writing prose, follow these principles:
+- Write in a rich, literary style befitting a fantasy world
+- Draw from Elder Scrolls lore sensibilities: complex politics, religious tension, cultural clashes
+- Create narratives that feel like they belong in Vvardenfell or similar fantasy worlds
+- The prose should be continuous, flowing text — not structured into acts
+
+RESPONSE FORMAT - You MUST return valid JSON matching this exact structure:
+{
+  "id": "story_<timestamp>",
+  "title": "Story Title",
+  "synopsis": "A 2-3 sentence overview",
+  "proseText": "The full essay/book-style narrative text. Multiple paragraphs of rich, immersive prose. This should be substantial and read like a real in-world document or literary piece.",
+  "keyPoints": [
+    "Key theme or plot point that could become a mod feature",
+    "Important character or faction that could be implemented",
+    "World-building detail that suggests gameplay mechanics",
+    "Narrative hook that could drive a quest or event"
+  ],
+  "acts": [],
+  "characters": [],
+  "loreNotes": ["Lore detail that enriches the world"],
+  "connections": ["How this could tie into a mod mechanic", "Suggested implementation approach"],
+  "storyType": "<the requested story type>",
+  "tone": "<the requested tone>",
+  "themes": ["<matching theme tags>"],
+  "createdAt": "<ISO timestamp>"
+}
+
+COMPLEXITY GUIDELINES (affect prose length):
+- short-tale: 2-4 paragraphs, 3-5 key points
+- multi-act-saga: 5-8 paragraphs, 5-8 key points
+- epic-chronicle: 8-12+ paragraphs, 8-12 key points
+
+CRITICAL: Return ONLY the JSON object. No markdown, no code fences, no explanation.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -67,18 +106,20 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     let userPrompt: string;
+    const format = body.format || 'structured';
+    const systemPrompt = format === 'prose' ? PROSE_SYSTEM_PROMPT : STRUCTURED_SYSTEM_PROMPT;
 
     if (body.isRandom) {
-      userPrompt = `Generate a random story for a Morrowind/Elder Scrolls style mod. Pick a random story type from: quest-line, npc-backstory, lore-entry, world-event, faction-history. Pick a random tone from: epic, dark, comedic, mysterious, tragic. Use a multi-act-saga complexity. Choose 2-4 interesting themes. Be creative and surprising!`;
+      userPrompt = `Generate a random ${format === 'prose' ? 'prose/book-style' : 'structured'} story for a Morrowind/Elder Scrolls style mod. Pick a random story type from: quest-line, npc-backstory, lore-entry, world-event, faction-history. Pick a random tone from: epic, dark, comedic, mysterious, tragic. Use a multi-act-saga complexity. Choose 2-4 interesting themes. Be creative and surprising!`;
     } else {
       const { storyType, themes, tone, complexity, setting } = body;
-      userPrompt = `Generate a ${tone} ${storyType.replace('-', ' ')} for a Morrowind/Elder Scrolls style mod.
+      userPrompt = `Generate a ${tone} ${storyType.replace('-', ' ')} in ${format === 'prose' ? 'essay/book prose format' : 'structured format'} for a Morrowind/Elder Scrolls style mod.
 
 Themes to incorporate: ${themes.join(', ')}
 Complexity level: ${complexity}
 ${setting ? `Setting/Context: ${setting}` : ''}
 
-Create an engaging narrative that a modder could implement in OpenMW. Include practical mod implementation suggestions in the "connections" field.`;
+${format === 'prose' ? 'Write an immersive, literary prose narrative. Extract key points that modders can use to derive mod ideas.' : 'Create an engaging narrative that a modder could implement in OpenMW.'} Include practical mod implementation suggestions in the "connections" field.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -90,7 +131,7 @@ Create an engaging narrative that a modder could implement in OpenMW. Include pr
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.85,
