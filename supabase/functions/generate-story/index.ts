@@ -106,18 +106,20 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     let userPrompt: string;
+    const format = body.format || 'structured';
+    const systemPrompt = format === 'prose' ? PROSE_SYSTEM_PROMPT : STRUCTURED_SYSTEM_PROMPT;
 
     if (body.isRandom) {
-      userPrompt = `Generate a random story for a Morrowind/Elder Scrolls style mod. Pick a random story type from: quest-line, npc-backstory, lore-entry, world-event, faction-history. Pick a random tone from: epic, dark, comedic, mysterious, tragic. Use a multi-act-saga complexity. Choose 2-4 interesting themes. Be creative and surprising!`;
+      userPrompt = `Generate a random ${format === 'prose' ? 'prose/book-style' : 'structured'} story for a Morrowind/Elder Scrolls style mod. Pick a random story type from: quest-line, npc-backstory, lore-entry, world-event, faction-history. Pick a random tone from: epic, dark, comedic, mysterious, tragic. Use a multi-act-saga complexity. Choose 2-4 interesting themes. Be creative and surprising!`;
     } else {
       const { storyType, themes, tone, complexity, setting } = body;
-      userPrompt = `Generate a ${tone} ${storyType.replace('-', ' ')} for a Morrowind/Elder Scrolls style mod.
+      userPrompt = `Generate a ${tone} ${storyType.replace('-', ' ')} in ${format === 'prose' ? 'essay/book prose format' : 'structured format'} for a Morrowind/Elder Scrolls style mod.
 
 Themes to incorporate: ${themes.join(', ')}
 Complexity level: ${complexity}
 ${setting ? `Setting/Context: ${setting}` : ''}
 
-Create an engaging narrative that a modder could implement in OpenMW. Include practical mod implementation suggestions in the "connections" field.`;
+${format === 'prose' ? 'Write an immersive, literary prose narrative. Extract key points that modders can use to derive mod ideas.' : 'Create an engaging narrative that a modder could implement in OpenMW.'} Include practical mod implementation suggestions in the "connections" field.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
