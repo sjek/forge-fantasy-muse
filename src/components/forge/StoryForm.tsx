@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { BookOpen, Dices, Loader2 } from 'lucide-react';
+import { BookOpen, Dices, Loader2, FileText, AlignLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { StoryType, StoryTone, StoryComplexity, ThemeTag, StoryFormData } from '@/types/mod-idea';
+import { StoryType, StoryTone, StoryComplexity, StoryFormat, ThemeTag, StoryFormData } from '@/types/mod-idea';
 
 const STORY_TYPES: { value: StoryType; label: string; icon: string }[] = [
   { value: 'quest-line', label: 'Quest Line', icon: '📜' },
