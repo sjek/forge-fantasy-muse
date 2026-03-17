@@ -60,6 +60,7 @@ export function StoryForm({ onGenerate, onRandomGenerate, isGenerating }: StoryF
   const [selectedThemes, setSelectedThemes] = useState<ThemeTag[]>([]);
   const [complexityValue, setComplexityValue] = useState([50]);
   const [setting, setSetting] = useState('');
+  const [format, setFormat] = useState<StoryFormat>('structured');
 
   const toggleTheme = (theme: ThemeTag) => {
     setSelectedThemes((prev) =>
