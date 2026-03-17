@@ -104,6 +104,12 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
           <Badge variant="secondary" className="font-body text-xs">
             {STORY_TYPE_LABELS[story.storyType] || story.storyType}
           </Badge>
+          {story.proseText && (
+            <Badge variant="secondary" className="font-body text-xs">
+              <AlignLeft className="mr-1 h-3 w-3" />
+              Prose
+            </Badge>
+          )}
           {story.themes.map((tag) => (
             <Badge key={tag} variant="secondary" className="font-body text-xs capitalize">
               {tag}
