@@ -390,11 +390,3 @@ ${story.connections.map((c) => `  • ${c}`).join('\n')}
 🏷️ Themes: ${story.themes.join(', ')}
 📅 Created: ${new Date(story.createdAt).toLocaleDateString()}`;
 }
-
-⚙️ Mod Connections:
-${story.connections.map((c) => `  • ${c}`).join('\n')}
-
-🏷️ Type: ${story.storyType} | Tone: ${story.tone}
-🏷️ Themes: ${story.themes.join(', ')}
-📅 Created: ${new Date(story.createdAt).toLocaleDateString()}`;
-}
