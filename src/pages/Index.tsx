@@ -192,6 +192,8 @@ export default function Index() {
                     onSave={() => saveStory(generatedStory)}
                     onRemove={() => removeStory(generatedStory.id)}
                     onConvertToMod={handleConvertStoryToMod}
+                    onRefine={handleRefineStory}
+                    isRefining={isGeneratingStory}
                   />
                 ) : (
                   <Card className="medieval-border bg-card/50 parchment-texture">

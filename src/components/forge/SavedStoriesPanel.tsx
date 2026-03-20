@@ -14,6 +14,8 @@ interface SavedStoriesPanelProps {
   onRemoveStory: (id: string) => void;
   onClearAll: () => void;
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
+  onRefine?: (story: StoryEntry, instruction: string) => void;
+  isRefining?: boolean;
 }
 
 const STORY_TYPES: { value: StoryType; label: string }[] = [
