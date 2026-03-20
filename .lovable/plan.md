@@ -1,296 +1,50 @@
 
 
-## Plan: Add Complex openmw.ui Examples for Menu Creation
+## Plan: Add Story Refinement Options for Prose/Book Format
 
 ### Overview
-Add a new `uiHandlers` section to `ENGINE_HANDLER_TEMPLATES` with comprehensive examples demonstrating advanced UI patterns: buttons with callbacks, scrolling lists, text input handling, modal dialogs, and interactive menus.
+Add a set of refinement actions to prose story cards that let users send the generated story back to the AI with a specific transformation instruction (e.g., "Make it darker", "Add more characters", "Expand the ending"). The refined story replaces the current one.
 
-### File to Modify
-**`supabase/functions/generate-mod-idea/index.ts`**
+### Changes
 
----
+#### 1. `StoryCard.tsx` — Add refinement UI (prose only)
+- Add a new row of selectable refinement badges/buttons below the prose narrative, visible only when `story.proseText` exists
+- Predefined options:
+  - **Tone shifts**: "Make it darker", "Make it more epic", "Add humor"
+  - **Content changes**: "Add more characters", "Expand the ending", "Add a plot twist"
+  - **Style**: "More poetic", "More dialogue", "More action"
+  - **World-building**: "Add more lore details", "Describe the setting more"
+- Add an optional custom refinement text input for freeform instructions
+- Add a "Refine Story" button that calls a new `onRefine` callback prop with the story + selected refinement instruction
+- Show a loading state while refining
 
-### New Section: uiHandlers in ENGINE_HANDLER_TEMPLATES
+#### 2. `Index.tsx` — Wire up refinement
+- Add `handleRefineStory(story: StoryEntry, instruction: string)` function
+- Calls `generate-story` edge function with a new field: `{ refine: true, originalStory: story, instruction: instruction, format: 'prose' }`
+- Updates `generatedStory` with the result
+- Pass `onRefine` and `isGeneratingStory` to StoryCard
 
-Add after `soundHandlers` (around line 2388) a new section with the following examples:
+#### 3. `supabase/functions/generate-story/index.ts` — Handle refinement requests
+- When `body.refine === true`, construct a prompt that includes the original story text and the refinement instruction
+- Use the prose system prompt but add the original story as context
+- User prompt: "Here is an existing story: [proseText]. Apply this change: [instruction]. Return the modified story in the same JSON format."
 
-#### 1. openmw.ui API Reference
-Complete reference for:
-- `ui.create(layout)` - Create UI element
-- `ui.content({...})` - Create content array
-- `ui.TYPE.*` - Widget, Text, Image, TextEdit, Flex
-- `ui.layers` - Available layers (HUD, Windows, Notification)
-- `ui.templates.*` - Built-in templates (textNormal, textHeader, etc.)
-- `element:update()` - Refresh layout after changes
-- `element:destroy()` - Remove element
+#### 4. `SavedStoriesPanel.tsx` — Forward refine callback
+- Pass `onRefine` through to StoryCard instances
 
-#### 2. Interactive Button Menu Pattern
-```lua
--- scripts/ButtonMenuMod/player.lua
-local ui = require('openmw.ui')
-local util = require('openmw.util')
-local input = require('openmw.input')
-local I = require('openmw.interfaces')
+### Predefined Refinement Options
+| Category | Options |
+|----------|---------|
+| Tone | "Darker tone", "More epic", "Add humor", "More mysterious" |
+| Content | "Add characters", "Expand ending", "Add plot twist", "More conflict" |
+| Style | "More poetic", "More dialogue-driven", "More action scenes" |
+| World | "Richer lore", "Vivid setting descriptions", "Add historical context" |
 
-local menuWindow = nil
-local menuOpen = false
-
-local function createButton(text, callback, yOffset)
-  return {
-    type = ui.TYPE.Widget,
-    props = {
-      relativePosition = util.vector2(0.5, yOffset),
-      anchor = util.vector2(0.5, 0.5),
-      size = util.vector2(180, 32),
-      resource = ui.WIDGET_BACKGROUND.Segment,
-      backgroundColor = util.color.rgb(0.3, 0.3, 0.4),
-    },
-    content = ui.content({
-      {
-        type = ui.TYPE.Text,
-        props = {
-          relativePosition = util.vector2(0.5, 0.5),
-          anchor = util.vector2(0.5, 0.5),
-          text = text,
-          textColor = util.color.rgb(1, 1, 1),
-        },
-      },
-    }),
-    events = {
-      mouseClick = async:callback(callback),
-      mouseMove = async:callback(function(e)
-        -- Hover highlight
-        e.layout.props.backgroundColor = util.color.rgb(0.4, 0.4, 0.6)
-        e.layout:update()
-      end),
-      focusLoss = async:callback(function(e)
-        e.layout.props.backgroundColor = util.color.rgb(0.3, 0.3, 0.4)
-        e.layout:update()
-      end),
-    },
-  }
-end
-```
-
-#### 3. Scrollable List Pattern
-```lua
--- Scrollable container with dynamic content
-local function createScrollableList(items)
-  local listContent = {}
-  for i, item in ipairs(items) do
-    table.insert(listContent, {
-      type = ui.TYPE.Widget,
-      props = {
-        size = util.vector2(280, 40),
-        resource = ui.WIDGET_BACKGROUND.Segment,
-        backgroundColor = (i % 2 == 0) 
-          and util.color.rgb(0.25, 0.25, 0.3)
-          or util.color.rgb(0.2, 0.2, 0.25),
-      },
-      content = ui.content({
-        { type = ui.TYPE.Text, props = { text = item.name, ... } },
-      }),
-      events = {
-        mouseClick = async:callback(function() onItemSelect(item) end),
-      },
-    })
-  end
-  
-  return {
-    type = ui.TYPE.Flex,
-    props = {
-      size = util.vector2(300, 400),
-      arrange = ui.FLEX_ARRANGE.Start,
-      direction = ui.FLEX_DIRECTION.Vertical,
-      -- Enable scrolling
-      scroll = ui.SCROLL.Vertical,
-    },
-    content = ui.content(listContent),
-  }
-end
-```
-
-#### 4. Text Input Field Pattern
-```lua
--- scripts/InputMod/player.lua
-local ui = require('openmw.ui')
-local async = require('openmw.async')
-
-local inputValue = ''
-
-local function createTextInput(placeholder)
-  return {
-    type = ui.TYPE.TextEdit,
-    props = {
-      relativePosition = util.vector2(0.5, 0.3),
-      anchor = util.vector2(0.5, 0.5),
-      size = util.vector2(200, 28),
-      multiline = false,
-      text = '',
-    },
-    events = {
-      textChanged = async:callback(function(event)
-        inputValue = event.layout.props.text
-      end),
-      keyPress = async:callback(function(event, key)
-        if key.symbol == 'return' then
-          onInputSubmit(inputValue)
-        end
-      end),
-    },
-  }
-end
-```
-
-#### 5. Modal Dialog with Confirm/Cancel
-```lua
--- Modal dialog pattern with action buttons
-local function showConfirmDialog(message, onConfirm, onCancel)
-  local dialog = ui.create({
-    layer = 'Windows',
-    type = ui.TYPE.Widget,
-    props = {
-      relativePosition = util.vector2(0.5, 0.5),
-      anchor = util.vector2(0.5, 0.5),
-      size = util.vector2(320, 160),
-    },
-    content = ui.content({
-      -- Background panel
-      { type = ui.TYPE.Widget, props = { resource = ui.WIDGET_BACKGROUND.Panel, ... } },
-      -- Message text
-      { type = ui.TYPE.Text, props = { text = message, ... } },
-      -- Confirm button
-      { events = { mouseClick = async:callback(function() 
-          onConfirm()
-          dialog:destroy()
-        end) } },
-      -- Cancel button
-      { events = { mouseClick = async:callback(function()
-          if onCancel then onCancel() end
-          dialog:destroy()
-        end) } },
-    }),
-  })
-  
-  I.Controls.overrideMovementControls(true)
-  return dialog
-end
-```
-
-#### 6. Tab Navigation System
-```lua
--- Tabbed interface pattern
-local TAB_CONFIG = {
-  { id = 'inventory', label = 'Inventory' },
-  { id = 'stats', label = 'Statistics' },
-  { id = 'quests', label = 'Quests' },
-}
-
-local activeTab = 'inventory'
-local tabContents = {}
-
-local function createTabButton(tab, index)
-  local isActive = (tab.id == activeTab)
-  return {
-    type = ui.TYPE.Widget,
-    props = {
-      position = util.vector2(index * 100, 0),
-      size = util.vector2(100, 32),
-      backgroundColor = isActive 
-        and util.color.rgb(0.4, 0.4, 0.5)
-        or util.color.rgb(0.25, 0.25, 0.3),
-    },
-    events = {
-      mouseClick = async:callback(function()
-        setActiveTab(tab.id)
-      end),
-    },
-  }
-end
-
-local function setActiveTab(tabId)
-  activeTab = tabId
-  -- Update visibility of tab contents
-  for id, content in pairs(tabContents) do
-    content.layout.props.visible = (id == tabId)
-    content:update()
-  end
-  rebuildTabs()
-end
-```
-
-#### 7. Dynamic List with Add/Remove
-```lua
--- Manage a list with add/remove functionality
-local listItems = {}
-
-local function addItem(item)
-  table.insert(listItems, item)
-  rebuildList()
-end
-
-local function removeItem(index)
-  table.remove(listItems, index)
-  rebuildList()
-end
-
-local function createListItem(item, index)
-  return {
-    type = ui.TYPE.Flex,
-    props = {
-      direction = ui.FLEX_DIRECTION.Horizontal,
-      size = util.vector2(280, 36),
-    },
-    content = ui.content({
-      -- Item text
-      { type = ui.TYPE.Text, props = { text = item.name, ... } },
-      -- Delete button
-      {
-        type = ui.TYPE.Widget,
-        props = { size = util.vector2(24, 24), ... },
-        events = {
-          mouseClick = async:callback(function()
-            removeItem(index)
-          end),
-        },
-        content = ui.content({
-          { type = ui.TYPE.Text, props = { text = 'X', ... } },
-        }),
-      },
-    }),
-  }
-end
-```
-
----
-
-### Update System Prompt
-
-Add documentation for openmw.ui in the system prompt (before CRITICAL Requirements) covering:
-- Available UI layers and when to use each
-- Event handling pattern with `async:callback()`
-- Content rebuilding pattern (`element.layout.content = newContent; element:update()`)
-- Focus and input management with `I.Controls.overrideMovementControls()`
-
----
-
-### Summary of Examples to Add
-
-| Example | Description |
-|---------|-------------|
-| openmw.ui API Reference | Complete API documentation with types, layers, templates |
-| Interactive Button Menu | Buttons with hover states and click callbacks |
-| Scrollable List | Flex container with vertical scrolling |
-| Text Input Field | TextEdit with change and submit handling |
-| Modal Dialog | Confirm/cancel dialog pattern |
-| Tab Navigation | Tabbed interface with content switching |
-| Dynamic List | Add/remove items with list rebuilding |
-
-### Technical Notes
-
-1. **Event Handling**: All UI events require `async:callback()` wrapper
-2. **Content Updates**: After modifying `element.layout`, call `element:update()`
-3. **Layers**: Use 'Windows' for menus, 'HUD' for overlays, 'Notification' for popups
-4. **Input Control**: Use `I.Controls.overrideMovementControls(true)` when menus are open
-5. **Cleanup**: Always destroy UI elements in `onInactive` handler
+### File Summary
+| File | Action |
+|------|--------|
+| `src/components/forge/StoryCard.tsx` | Add refinement options UI for prose stories |
+| `src/pages/Index.tsx` | Add `handleRefineStory`, pass callbacks |
+| `supabase/functions/generate-story/index.ts` | Handle `refine` requests |
+| `src/components/forge/SavedStoriesPanel.tsx` | Forward `onRefine` prop |
 
