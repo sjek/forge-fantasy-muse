@@ -190,6 +190,67 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, on
                 </CollapsibleContent>
               </Collapsible>
             )}
+
+            {/* Refinement Options */}
+            {onRefine && (
+              <Collapsible open={isRefinementOpen} onOpenChange={setIsRefinementOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4" />
+                      Refine Story
+                    </span>
+                    {isRefinementOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-3">
+                  {Object.entries(REFINEMENT_OPTIONS).map(([category, options]) => (
+                    <div key={category}>
+                      <p className="font-display text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">{category}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {options.map((option) => (
+                          <Badge
+                            key={option}
+                            variant={selectedRefinement === option ? 'default' : 'outline'}
+                            className="cursor-pointer text-xs font-body transition-colors hover:bg-primary/20"
+                            onClick={() => {
+                              setSelectedRefinement(selectedRefinement === option ? null : option);
+                              setCustomRefinement('');
+                            }}
+                          >
+                            {option}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="space-y-2">
+                    <p className="font-display text-[11px] uppercase tracking-wider text-muted-foreground">Or custom</p>
+                    <Input
+                      placeholder="Describe your refinement..."
+                      value={customRefinement}
+                      onChange={(e) => {
+                        setCustomRefinement(e.target.value);
+                        if (e.target.value) setSelectedRefinement(null);
+                      }}
+                      className="font-body text-sm"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleRefine}
+                    disabled={isRefining || (!selectedRefinement && !customRefinement.trim())}
+                    className="w-full font-display text-xs uppercase tracking-wider"
+                  >
+                    {isRefining ? (
+                      <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Refining...</>
+                    ) : (
+                      <><Sparkles className="mr-1.5 h-4 w-4" />Refine Story</>
+                    )}
+                  </Button>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
           </>
         ) : (
           <>

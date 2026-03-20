@@ -79,6 +79,24 @@ export default function Index() {
     }
   };
 
+  const handleRefineStory = async (story: StoryEntry, instruction: string) => {
+    setIsGeneratingStory(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('generate-story', {
+        body: { refine: true, originalStory: story, instruction, format: 'prose' },
+      });
+      if (error) throw new Error(error.message || 'Failed to refine story');
+      if (result.error) throw new Error(result.error);
+      setGeneratedStory(result);
+      toast({ title: "Story Refined!", description: `"${result.title}" has been transformed.` });
+    } catch (err) {
+      console.error('Story refinement error:', err);
+      toast({ title: "Refinement Failed", description: err instanceof Error ? err.message : 'Could not refine story.', variant: "destructive" });
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background parchment-texture">
       <div className="container max-w-6xl mx-auto px-4 pb-12">
