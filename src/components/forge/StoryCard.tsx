@@ -45,7 +45,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: StoryCardProps) {
+export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, onRefine, isRefining }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
@@ -54,7 +54,18 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
   const [copied, setCopied] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedConnections, setSelectedConnections] = useState<string[]>([]);
+  const [selectedRefinement, setSelectedRefinement] = useState<string | null>(null);
+  const [customRefinement, setCustomRefinement] = useState('');
+  const [isRefinementOpen, setIsRefinementOpen] = useState(false);
   const { toast } = useToast();
+
+  const handleRefine = () => {
+    const instruction = customRefinement.trim() || selectedRefinement;
+    if (!instruction || !onRefine) return;
+    onRefine(story, instruction);
+    setSelectedRefinement(null);
+    setCustomRefinement('');
+  };
 
   const toggleConnection = (conn: string) => {
     setSelectedConnections((prev) =>
