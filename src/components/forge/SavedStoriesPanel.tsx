@@ -14,6 +14,8 @@ interface SavedStoriesPanelProps {
   onRemoveStory: (id: string) => void;
   onClearAll: () => void;
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
+  onRefine?: (story: StoryEntry, instruction: string) => void;
+  isRefining?: boolean;
 }
 
 const STORY_TYPES: { value: StoryType; label: string }[] = [
@@ -24,7 +26,7 @@ const STORY_TYPES: { value: StoryType; label: string }[] = [
   { value: 'faction-history', label: 'Faction History' },
 ];
 
-export function SavedStoriesPanel({ stories, onRemoveStory, onClearAll, onConvertToMod }: SavedStoriesPanelProps) {
+export function SavedStoriesPanel({ stories, onRemoveStory, onClearAll, onConvertToMod, onRefine, isRefining }: SavedStoriesPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const { toast } = useToast();
@@ -134,6 +136,8 @@ export function SavedStoriesPanel({ stories, onRemoveStory, onClearAll, onConver
               onSave={() => {}}
               onRemove={() => onRemoveStory(story.id)}
               onConvertToMod={onConvertToMod}
+              onRefine={onRefine}
+              isRefining={isRefining}
             />
           ))}
         </div>

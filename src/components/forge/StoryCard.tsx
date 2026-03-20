@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,9 +7,17 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { StoryEntry } from '@/types/mod-idea';
 import { copyToClipboard } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
+
+const REFINEMENT_OPTIONS: Record<string, string[]> = {
+  'Tone': ['Darker tone', 'More epic', 'Add humor', 'More mysterious'],
+  'Content': ['Add characters', 'Expand ending', 'Add plot twist', 'More conflict'],
+  'Style': ['More poetic', 'More dialogue-driven', 'More action scenes'],
+  'World': ['Richer lore', 'Vivid setting descriptions', 'Add historical context'],
+};
 
 interface StoryCardProps {
   story: StoryEntry;
@@ -17,6 +25,8 @@ interface StoryCardProps {
   onSave: () => void;
   onRemove: () => void;
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
+  onRefine?: (story: StoryEntry, instruction: string) => void;
+  isRefining?: boolean;
 }
 
 const TONE_COLORS: Record<string, string> = {
@@ -35,7 +45,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: StoryCardProps) {
+export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, onRefine, isRefining }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
@@ -44,7 +54,18 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
   const [copied, setCopied] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedConnections, setSelectedConnections] = useState<string[]>([]);
+  const [selectedRefinement, setSelectedRefinement] = useState<string | null>(null);
+  const [customRefinement, setCustomRefinement] = useState('');
+  const [isRefinementOpen, setIsRefinementOpen] = useState(false);
   const { toast } = useToast();
+
+  const handleRefine = () => {
+    const instruction = customRefinement.trim() || selectedRefinement;
+    if (!instruction || !onRefine) return;
+    onRefine(story, instruction);
+    setSelectedRefinement(null);
+    setCustomRefinement('');
+  };
 
   const toggleConnection = (conn: string) => {
     setSelectedConnections((prev) =>
@@ -166,6 +187,67 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod }: 
                       <p className="font-body text-sm text-foreground/85">{point}</p>
                     </div>
                   ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Refinement Options */}
+            {onRefine && (
+              <Collapsible open={isRefinementOpen} onOpenChange={setIsRefinementOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between font-display text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4" />
+                      Refine Story
+                    </span>
+                    {isRefinementOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-3">
+                  {Object.entries(REFINEMENT_OPTIONS).map(([category, options]) => (
+                    <div key={category}>
+                      <p className="font-display text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">{category}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {options.map((option) => (
+                          <Badge
+                            key={option}
+                            variant={selectedRefinement === option ? 'default' : 'outline'}
+                            className="cursor-pointer text-xs font-body transition-colors hover:bg-primary/20"
+                            onClick={() => {
+                              setSelectedRefinement(selectedRefinement === option ? null : option);
+                              setCustomRefinement('');
+                            }}
+                          >
+                            {option}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="space-y-2">
+                    <p className="font-display text-[11px] uppercase tracking-wider text-muted-foreground">Or custom</p>
+                    <Input
+                      placeholder="Describe your refinement..."
+                      value={customRefinement}
+                      onChange={(e) => {
+                        setCustomRefinement(e.target.value);
+                        if (e.target.value) setSelectedRefinement(null);
+                      }}
+                      className="font-body text-sm"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleRefine}
+                    disabled={isRefining || (!selectedRefinement && !customRefinement.trim())}
+                    className="w-full font-display text-xs uppercase tracking-wider"
+                  >
+                    {isRefining ? (
+                      <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Refining...</>
+                    ) : (
+                      <><Sparkles className="mr-1.5 h-4 w-4" />Refine Story</>
+                    )}
+                  </Button>
                 </CollapsibleContent>
               </Collapsible>
             )}

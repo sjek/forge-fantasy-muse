@@ -109,7 +109,24 @@ serve(async (req) => {
     const format = body.format || 'structured';
     const systemPrompt = format === 'prose' ? PROSE_SYSTEM_PROMPT : STRUCTURED_SYSTEM_PROMPT;
 
-    if (body.isRandom) {
+    if (body.refine && body.originalStory) {
+      const orig = body.originalStory;
+      userPrompt = `Here is an existing prose story in JSON format:
+
+Title: ${orig.title}
+Synopsis: ${orig.synopsis}
+Prose: ${orig.proseText}
+Key Points: ${JSON.stringify(orig.keyPoints || [])}
+Lore Notes: ${JSON.stringify(orig.loreNotes || [])}
+Connections: ${JSON.stringify(orig.connections || [])}
+Story Type: ${orig.storyType}
+Tone: ${orig.tone}
+Themes: ${JSON.stringify(orig.themes || [])}
+
+Apply this refinement: "${body.instruction}"
+
+Rewrite the story incorporating the requested change. Keep the same JSON response format. Preserve the story's core identity but transform it according to the instruction. Update keyPoints, loreNotes, and connections if the refinement affects them.`;
+    } else if (body.isRandom) {
       userPrompt = `Generate a random ${format === 'prose' ? 'prose/book-style' : 'structured'} story for a Morrowind/Elder Scrolls style mod. Pick a random story type from: quest-line, npc-backstory, lore-entry, world-event, faction-history. Pick a random tone from: epic, dark, comedic, mysterious, tragic. Use a multi-act-saga complexity. Choose 2-4 interesting themes. Be creative and surprising!`;
     } else {
       const { storyType, themes, tone, complexity, setting } = body;
