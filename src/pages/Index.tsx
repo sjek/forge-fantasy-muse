@@ -223,6 +223,8 @@ export default function Index() {
               onRemoveStory={removeStory}
               onClearAll={clearAllStories}
               onConvertToMod={handleConvertStoryToMod}
+              onRefine={handleRefineStory}
+              isRefining={isGeneratingStory}
             />
           </TabsContent>
         </Tabs>
