@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,9 +7,17 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { StoryEntry } from '@/types/mod-idea';
 import { copyToClipboard } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
+
+const REFINEMENT_OPTIONS: Record<string, string[]> = {
+  'Tone': ['Darker tone', 'More epic', 'Add humor', 'More mysterious'],
+  'Content': ['Add characters', 'Expand ending', 'Add plot twist', 'More conflict'],
+  'Style': ['More poetic', 'More dialogue-driven', 'More action scenes'],
+  'World': ['Richer lore', 'Vivid setting descriptions', 'Add historical context'],
+};
 
 interface StoryCardProps {
   story: StoryEntry;
@@ -17,6 +25,8 @@ interface StoryCardProps {
   onSave: () => void;
   onRemove: () => void;
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
+  onRefine?: (story: StoryEntry, instruction: string) => void;
+  isRefining?: boolean;
 }
 
 const TONE_COLORS: Record<string, string> = {
