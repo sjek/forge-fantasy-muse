@@ -6019,7 +6019,7 @@ IMPORTANT:
 - Specify which script context (Global/Local/Player) each code example belongs to
 - Show how scripts communicate via events (core.sendGlobalEvent, object:sendEvent)
 - Include onSave/onLoad for state persistence
-- Include a complete .omwscripts file example${apiPackageInstructions}`;
+- Include a complete .omwscripts file example${apiPackageInstructions}${interfaceInstructions}`;
     } else {
       const themeContext = getRelevantTemplates(selectedThemes);
       const themeNames = themeContext.map(t => t.name).join(', ');
@@ -6035,7 +6035,7 @@ CRITICAL REQUIREMENTS:
 - Include onSave/onLoad handlers for persistent state
 - Use openmw.interfaces where appropriate (AI, Combat, etc.)
 - Include a complete .omwscripts example showing file registration
-- For complex mods, show the communication flow between script types${apiPackageInstructions}`;
+- For complex mods, show the communication flow between script types${apiPackageInstructions}${interfaceInstructions}`;
     }
 
     console.log('Generating mod idea with prompt:', userPrompt);
