@@ -5986,6 +5986,24 @@ PRIORITIZED API PACKAGES - The user specifically wants the generated code to foc
 Make sure your implementation hints prominently feature these packages with practical examples. Design the mod concept around capabilities these packages provide.`;
     }
 
+    // Build built-in interface focus instructions
+    let interfaceInstructions = '';
+    const selectedInterfaces = interfaces || [];
+    if (selectedInterfaces.length > 0) {
+      const interfaceLines = selectedInterfaces.map((name: string) => {
+        const entry = (INTERFACE_CATALOG as any)[name];
+        if (!entry) return `I.${name}`;
+        return `I.${name} [${entry.context}] — ${entry.description} (methods: ${entry.methods.slice(0, 3).join('; ')})`;
+      }).join('\n- ');
+      interfaceInstructions = `
+
+PRIORITIZED BUILT-IN INTERFACES - The user wants generated code to leverage these OpenMW interfaces (require 'openmw.interfaces' as I):
+- ${interfaceLines}
+
+Use the correct script context for each interface and the exact method signatures shown above.`;
+    }
+
+
     let userPrompt = '';
     
     if (isRandom) {
