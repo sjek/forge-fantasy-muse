@@ -5687,6 +5687,14 @@ function buildSystemPrompt(themes: string[]): string {
     interfaceRef += `\n**${iface.title}:** ${iface.description}\n`;
   }
 
+  // Built-in interface catalog (all 13 interfaces from OpenMW API v135)
+  interfaceRef += "\n### Built-in Interfaces (require 'openmw.interfaces' as I):\n";
+  for (const [name, entry] of Object.entries(INTERFACE_CATALOG)) {
+    interfaceRef += `- **I.${name}** [${(entry as any).context}]: ${(entry as any).description}\n`;
+    interfaceRef += `  Methods: ${(entry as any).methods.join(' | ')}\n`;
+  }
+
+
   // Build event reference
   let eventRef = "\n## Events:\n";
   for (const evt of Object.values(EVENT_TEMPLATES)) {
