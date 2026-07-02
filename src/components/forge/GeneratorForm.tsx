@@ -309,6 +309,72 @@ export function GeneratorForm({ onGenerate, onRandomGenerate, isGenerating, pref
         </CollapsibleContent>
       </Collapsible>
 
+      {/* Built-in Interfaces (Collapsible) */}
+      <Collapsible open={interfaceSectionOpen} onOpenChange={setInterfaceSectionOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center justify-between w-full py-2 text-left group"
+          >
+            <Label className="font-display text-sm uppercase tracking-wider text-foreground cursor-pointer group-hover:text-primary transition-colors">
+              Built-in Interfaces (Advanced)
+              {selectedInterfaces.length > 0 && (
+                <span className="ml-2 text-xs text-gold">({selectedInterfaces.length} selected)</span>
+              )}
+            </Label>
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                interfaceSectionOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-2">
+          <p className="text-xs text-muted-foreground font-body">
+            Select OpenMW built-in interfaces (via <code>require('openmw.interfaces')</code>) to prioritize in the generated code. Each interface is available only in the shown script context.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <TooltipProvider delayDuration={200}>
+              {OPENMW_INTERFACES.map((iface) => (
+                <Tooltip key={iface.value}>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant={selectedInterfaces.includes(iface.value) ? 'default' : 'outline'}
+                      className={`cursor-pointer transition-all font-body ${
+                        selectedInterfaces.includes(iface.value)
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'hover:bg-secondary'
+                      }`}
+                      onClick={() => toggleInterface(iface.value)}
+                    >
+                      <span className="mr-1">{iface.icon}</span>
+                      {iface.label}
+                      <span className={`ml-1.5 px-1 py-0.5 text-[10px] rounded border ${INTERFACE_CONTEXT_COLORS[iface.context]}`}>
+                        {iface.context}
+                      </span>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px]">
+                    <p className="font-semibold">I.{iface.value}</p>
+                    <p className="text-xs text-muted-foreground">{iface.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+          <div className="flex flex-wrap gap-3 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground">Context:</span>
+            {Object.entries(INTERFACE_CONTEXT_COLORS).map(([context, colorClass]) => (
+              <span key={context} className={`text-xs px-1.5 py-0.5 rounded border ${colorClass}`}>
+                {context}
+              </span>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+
+
       {/* Complexity Slider */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
