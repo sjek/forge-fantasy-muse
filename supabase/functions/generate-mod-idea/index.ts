@@ -190,7 +190,261 @@ return {
   }
 };
 
-// Interface System Templates
+// ============================================================================
+// OpenMW Built-in Interface Catalog (API v135)
+// Full list from https://openmw.readthedocs.io/en/latest/reference/lua-scripting/index_interfaces.html
+// ============================================================================
+const INTERFACE_CATALOG = {
+  Activation: {
+    context: 'global',
+    description: 'Extend or override built-in activation mechanics (doors, containers, items, actors).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_activation.html',
+    methods: [
+      'addHandlerForObject(obj, handler(object, actor) -> bool|nil)',
+      'addHandlerForType(type, handler(object, actor) -> bool|nil)',
+      'addHandlerForAll(handler(object, actor) -> bool|nil)',
+    ],
+    example: `-- GLOBAL script
+local I = require('openmw.interfaces')
+local types = require('openmw.types')
+
+I.Activation.addHandlerForType(types.Door, function(object, actor)
+  if object.recordId == 'my_sealed_door' then
+    actor:sendEvent('MyMod_ShowMessage', { text = 'The door is sealed.' })
+    return false  -- block default activation
+  end
+end)`,
+  },
+  AI: {
+    context: 'local',
+    description: 'Control basic AI packages of NPCs and creatures (Travel, Wander, Combat, Follow, etc.).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_ai.html',
+    methods: [
+      'startPackage({ type, target?, destPosition?, distance?, duration?, isRepeat? })',
+      'getActivePackage() -> package',
+      'getActiveTarget(type) -> gameObject | nil',
+      'removePackages(type?)',
+      'filterPackages(function(pkg) -> bool)',
+    ],
+    example: `-- LOCAL script attached to an NPC
+local I = require('openmw.interfaces')
+local util = require('openmw.util')
+
+I.AI.startPackage({
+  type = 'Travel',
+  destPosition = util.vector3(1000, 2000, 100),
+})
+
+-- Detect combat via active package (no I.Combat.isInCombat)
+local pkg = I.AI.getActivePackage()
+local inCombat = pkg and pkg.type == 'Combat'`,
+  },
+  AnimationController: {
+    context: 'local',
+    description: 'Control animations of NPCs and creatures; hook custom logic into animation state changes.',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_animation.html',
+    methods: [
+      'addPlayBlendedAnimationHandler(fn(groupname, options))',
+      'addTextKeyHandler(groupname, fn(textKey))',
+      'playBlendedAnimation(group, options)',
+    ],
+    example: `-- LOCAL script on an actor
+local I = require('openmw.interfaces')
+
+I.AnimationController.addTextKeyHandler('idle', function(textKey)
+  if textKey == 'sound: mysound' then
+    -- react to animation marker
+  end
+end)`,
+  },
+  Camera: {
+    context: 'player',
+    description: 'Alter behavior of the built-in camera script (disable zoom, head-bobbing, mode switching...).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_camera.html',
+    methods: [
+      'disableModeControl() / enableModeControl()',
+      'disableZoom() / enableZoom()',
+      'disableHeadBobbing() / enableHeadBobbing()',
+      'disableStandingPreview() / enableStandingPreview()',
+      'disableThirdPersonOffsetControl() / enableThirdPersonOffsetControl()',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+local camera = require('openmw.camera')
+
+-- Force first person and lock the mode
+camera.setMode(camera.MODE.FirstPerson)
+I.Camera.disableModeControl()
+I.Camera.disableZoom()`,
+  },
+  Combat: {
+    context: 'local',
+    description: 'Control combat of NPCs and creatures; register on-hit handlers and modifiers.',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_combat.html',
+    methods: [
+      'addOnHitHandler(fn(attacker, target, attackInfo))',
+      'getArmorRating(actor) -> number',
+    ],
+    example: `-- LOCAL script attached to an actor
+local I = require('openmw.interfaces')
+
+I.Combat.addOnHitHandler(function(attacker, target, info)
+  if info.damage > 50 then
+    -- staggered
+  end
+end)`,
+  },
+  Controls: {
+    context: 'player',
+    description: 'Alter behavior of the built-in script that handles player controls (movement, combat, UI).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_controls.html',
+    methods: [
+      'overrideMovementControls(bool)',
+      'overrideCombatControls(bool)',
+      'overrideUiControls(bool)',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+
+-- Freeze player during a cutscene
+I.Controls.overrideMovementControls(true)
+I.Controls.overrideCombatControls(true)`,
+  },
+  Crimes: {
+    context: 'global',
+    description: 'Programmatically commit crimes on behalf of an actor (theft, assault, murder, trespass...).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_crimes.html',
+    methods: [
+      'commitCrime(actor, { type, victim?, arg?, faction? }) -> bool',
+      'OFFENSE_TYPE.Theft / .Assault / .Murder / .Trespassing / .Pickpocket / .Werewolf',
+    ],
+    example: `-- GLOBAL script
+local I = require('openmw.interfaces')
+
+I.Crimes.commitCrime(player, {
+  type = I.Crimes.OFFENSE_TYPE.Theft,
+  victim = shopkeeper,
+  arg = 100,  -- gold value stolen
+})`,
+  },
+  GamepadControls: {
+    context: 'player',
+    description: 'Alter behavior of the built-in gamepad controls script (buttons, deadzones, cursor).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_gamepadcontrols.html',
+    methods: [
+      'isGamepadCursorActive() -> bool',
+      'setGamepadCursorActive(bool)',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+
+if I.GamepadControls.isGamepadCursorActive() then
+  -- Adjust UI for controller cursor
+end`,
+  },
+  ItemUsage: {
+    context: 'global',
+    description: 'Extend or override built-in item usage (potions, scrolls, food, custom activators).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_item_usage.html',
+    methods: [
+      'addHandlerForType(type, handler(item, actor) -> bool|nil)',
+      'addHandlerForModel(model, handler(item, actor) -> bool|nil)',
+    ],
+    example: `-- GLOBAL script
+local I = require('openmw.interfaces')
+local types = require('openmw.types')
+
+I.ItemUsage.addHandlerForType(types.Potion, function(item, actor)
+  if item.recordId == 'cursed_potion' then
+    actor:sendEvent('MyMod_ApplyCurse', {})
+    return false  -- prevent normal consumption
+  end
+end)`,
+  },
+  MWUI: {
+    context: 'menu, player',
+    description: 'Morrowind-style UI templates for consistent look with the vanilla interface.',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_mwui.html',
+    methods: [
+      'templates.textNormal / textHeader / textParagraph',
+      'templates.borders / bordersThick',
+      'templates.padding / paddingLine',
+      'templates.horizontalLine / verticalLine',
+      'templates.textEditLine',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+local ui = require('openmw.ui')
+
+ui.create({
+  template = I.MWUI.templates.borders,
+  content = ui.content({
+    { template = I.MWUI.templates.textHeader, props = { text = 'Hello' } },
+    { template = I.MWUI.templates.textParagraph, props = { text = 'World' } },
+  }),
+})`,
+  },
+  Settings: {
+    context: 'global, menu, player',
+    description: 'Register in-game settings pages/groups (persisted, l10n-aware, visible in Options menu).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_settings.html',
+    methods: [
+      'registerPage({ key, l10n, name, description })',
+      'registerGroup({ key, page, l10n, name, permanentStorage, settings = {...} })',
+      'registerRenderer(name, fn)',
+    ],
+    example: `-- PLAYER (or GLOBAL) script
+local I = require('openmw.interfaces')
+
+I.Settings.registerPage({ key = 'MyMod', l10n = 'MyMod', name = 'My Mod' })
+I.Settings.registerGroup({
+  key = 'SettingsPlayerMyMod',
+  page = 'MyMod',
+  l10n = 'MyMod',
+  name = 'General',
+  permanentStorage = true,
+  settings = {
+    { key = 'enabled', renderer = 'checkbox', name = 'Enabled', default = true },
+  },
+})`,
+  },
+  SkillProgression: {
+    context: 'player',
+    description: 'Control, extend and override skill progression (custom XP curves, new skills).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_skill_progression.html',
+    methods: [
+      'skillLevelUpHandler(skill, source) -> bool',
+      'skillUsedHandler(skill, useType, scale)',
+      'setSkillProgressionRate(skill, rate)',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+
+I.SkillProgression.skillLevelUpHandler = function(skill, source)
+  -- Return false to block the level-up (e.g. cap at a value)
+  return true
+end`,
+  },
+  UI: {
+    context: 'player',
+    description: 'High-level UI mode stack (Inventory, Dialogue, Journal, Rest, custom modes).',
+    docLink: 'https://openmw.readthedocs.io/en/latest/reference/lua-scripting/interface_ui.html',
+    methods: [
+      'addMode(name, { windows = {...}, target? })',
+      'removeMode(name)',
+      'setMode(name, options)',
+      'getMode() -> string | nil',
+      'isWindowVisible(name) -> bool',
+    ],
+    example: `-- PLAYER script
+local I = require('openmw.interfaces')
+
+-- Push a custom UI mode that hides HUD and blocks input
+I.UI.addMode('MyModMenu', { windows = {} })`,
+  },
+};
+
+// Interface System Templates (custom interface authoring patterns)
 const INTERFACE_TEMPLATES = {
   definingInterface: {
     title: "Defining a Custom Interface",
@@ -233,7 +487,7 @@ I.Controls.overrideCombatControls(true)  -- Disable combat controls
 
 -- Camera - use openmw.camera module, not I.Camera
 camera.setMode(camera.MODE.ThirdPerson)
-I.Camera.disableZoom(true)  -- Interface for disabling controls
+I.Camera.disableZoom()  -- Interface for disabling zoom control
 
 -- Activation Interface (handler signature: object, actor)
 I.Activation.addHandlerForType(types.Door, function(object, actor)
@@ -268,6 +522,7 @@ return {
 }`
   }
 };
+
 
 // Event System Templates
 const EVENT_TEMPLATES = {
@@ -5432,6 +5687,14 @@ function buildSystemPrompt(themes: string[]): string {
     interfaceRef += `\n**${iface.title}:** ${iface.description}\n`;
   }
 
+  // Built-in interface catalog (all 13 interfaces from OpenMW API v135)
+  interfaceRef += "\n### Built-in Interfaces (require 'openmw.interfaces' as I):\n";
+  for (const [name, entry] of Object.entries(INTERFACE_CATALOG)) {
+    interfaceRef += `- **I.${name}** [${(entry as any).context}]: ${(entry as any).description}\n`;
+    interfaceRef += `  Methods: ${(entry as any).methods.join(' | ')}\n`;
+  }
+
+
   // Build event reference
   let eventRef = "\n## Events:\n";
   for (const evt of Object.values(EVENT_TEMPLATES)) {
@@ -5685,7 +5948,7 @@ serve(async (req) => {
   }
 
   try {
-    const { gameType, themes, complexity, customNotes, isRandom, apiPackages } = await req.json();
+    const { gameType, themes, complexity, customNotes, isRandom, apiPackages, interfaces } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -5731,6 +5994,24 @@ PRIORITIZED API PACKAGES - The user specifically wants the generated code to foc
 Make sure your implementation hints prominently feature these packages with practical examples. Design the mod concept around capabilities these packages provide.`;
     }
 
+    // Build built-in interface focus instructions
+    let interfaceInstructions = '';
+    const selectedInterfaces = interfaces || [];
+    if (selectedInterfaces.length > 0) {
+      const interfaceLines = selectedInterfaces.map((name: string) => {
+        const entry = (INTERFACE_CATALOG as any)[name];
+        if (!entry) return `I.${name}`;
+        return `I.${name} [${entry.context}] — ${entry.description} (methods: ${entry.methods.slice(0, 3).join('; ')})`;
+      }).join('\n- ');
+      interfaceInstructions = `
+
+PRIORITIZED BUILT-IN INTERFACES - The user wants generated code to leverage these OpenMW interfaces (require 'openmw.interfaces' as I):
+- ${interfaceLines}
+
+Use the correct script context for each interface and the exact method signatures shown above.`;
+    }
+
+
     let userPrompt = '';
     
     if (isRandom) {
@@ -5746,7 +6027,7 @@ IMPORTANT:
 - Specify which script context (Global/Local/Player) each code example belongs to
 - Show how scripts communicate via events (core.sendGlobalEvent, object:sendEvent)
 - Include onSave/onLoad for state persistence
-- Include a complete .omwscripts file example${apiPackageInstructions}`;
+- Include a complete .omwscripts file example${apiPackageInstructions}${interfaceInstructions}`;
     } else {
       const themeContext = getRelevantTemplates(selectedThemes);
       const themeNames = themeContext.map(t => t.name).join(', ');
@@ -5762,7 +6043,7 @@ CRITICAL REQUIREMENTS:
 - Include onSave/onLoad handlers for persistent state
 - Use openmw.interfaces where appropriate (AI, Combat, etc.)
 - Include a complete .omwscripts example showing file registration
-- For complex mods, show the communication flow between script types${apiPackageInstructions}`;
+- For complex mods, show the communication flow between script types${apiPackageInstructions}${interfaceInstructions}`;
     }
 
     console.log('Generating mod idea with prompt:', userPrompt);
