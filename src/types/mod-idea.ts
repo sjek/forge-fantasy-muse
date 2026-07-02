@@ -61,6 +61,21 @@ export type ApiPackage =
   | 'openmw.animation'
   | 'openmw_aux.time';
 
+export type OpenMWInterface =
+  | 'Activation'
+  | 'AI'
+  | 'AnimationController'
+  | 'Camera'
+  | 'Combat'
+  | 'Controls'
+  | 'Crimes'
+  | 'GamepadControls'
+  | 'ItemUsage'
+  | 'MWUI'
+  | 'Settings'
+  | 'SkillProgression'
+  | 'UI';
+
 export interface ModIdea {
   id: string;
   title: string;
@@ -85,8 +100,10 @@ export interface GeneratorFormData {
   themes: ThemeTag[];
   complexity: Complexity;
   apiPackages?: ApiPackage[];
+  interfaces?: OpenMWInterface[];
   customNotes?: string;
 }
+
 
 // Story Board Types
 export type StoryType = 'quest-line' | 'npc-backstory' | 'lore-entry' | 'world-event' | 'faction-history';
