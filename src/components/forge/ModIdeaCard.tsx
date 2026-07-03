@@ -34,19 +34,21 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
   const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const handleCopyCode = async (code: string, index: number) => {
+  const handleCopyCode = async (code: string, index: number, kind: 'lua' | 'pseudo' = 'lua') => {
     try {
       await copyToClipboard(code);
-      setCopiedHintIndex(index);
+      if (kind === 'lua') setCopiedHintIndex(index); else setCopiedPseudoIndex(index);
       toast({
-        title: "Code Copied",
-        description: "Lua code copied to clipboard!",
+        title: kind === 'lua' ? "Code Copied" : "Pseudocode Copied",
+        description: kind === 'lua' ? "Lua code copied to clipboard!" : "Pseudocode copied to clipboard!",
       });
-      setTimeout(() => setCopiedHintIndex(null), 2000);
+      setTimeout(() => {
+        if (kind === 'lua') setCopiedHintIndex(null); else setCopiedPseudoIndex(null);
+      }, 2000);
     } catch (err) {
       toast({
         title: "Copy Failed",
-        description: "Could not copy code to clipboard.",
+        description: "Could not copy to clipboard.",
         variant: "destructive",
       });
     }
