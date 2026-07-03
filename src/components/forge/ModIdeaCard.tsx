@@ -31,6 +31,7 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
+  const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
   const handleCopyCode = async (code: string, index: number) => {
