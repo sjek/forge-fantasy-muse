@@ -31,21 +31,24 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
+  const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const handleCopyCode = async (code: string, index: number) => {
+  const handleCopyCode = async (code: string, index: number, kind: 'lua' | 'pseudo' = 'lua') => {
     try {
       await copyToClipboard(code);
-      setCopiedHintIndex(index);
+      if (kind === 'lua') setCopiedHintIndex(index); else setCopiedPseudoIndex(index);
       toast({
-        title: "Code Copied",
-        description: "Lua code copied to clipboard!",
+        title: kind === 'lua' ? "Code Copied" : "Pseudocode Copied",
+        description: kind === 'lua' ? "Lua code copied to clipboard!" : "Pseudocode copied to clipboard!",
       });
-      setTimeout(() => setCopiedHintIndex(null), 2000);
+      setTimeout(() => {
+        if (kind === 'lua') setCopiedHintIndex(null); else setCopiedPseudoIndex(null);
+      }, 2000);
     } catch (err) {
       toast({
         title: "Copy Failed",
-        description: "Could not copy code to clipboard.",
+        description: "Could not copy to clipboard.",
         variant: "destructive",
       });
     }
@@ -144,6 +147,34 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
                 <p className="font-body text-sm text-muted-foreground">
                   {hint.description}
                 </p>
+                {hint.pseudocode && (
+                  <div className="mt-2 rounded-md overflow-hidden border border-border/50">
+                    <div className="flex items-center justify-between bg-gold/10 px-3 py-1.5">
+                      <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Pseudocode</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopyCode(hint.pseudocode!, idx, 'pseudo')}
+                      >
+                        {copiedPseudoIndex === idx ? (
+                          <>
+                            <Check className="h-3 w-3 mr-1 text-forest" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <pre className="bg-background/60 p-3 text-xs font-mono text-foreground/90 overflow-x-auto whitespace-pre-wrap">
+                      <code>{hint.pseudocode}</code>
+                    </pre>
+                  </div>
+                )}
                 {hint.luaExample && (
                   <div className="mt-2 rounded-md overflow-hidden border border-border/50">
                     <div className="flex items-center justify-between bg-secondary/80 px-3 py-1.5">
