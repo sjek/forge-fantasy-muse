@@ -5729,6 +5729,7 @@ Your responses must be valid JSON with this exact structure:
       "title": "Implementation aspect title",
       "scriptContext": "global|local|player",
       "description": "How to implement with proper script context",
+      "pseudocode": "Plain-language, language-agnostic outline of the same logic as luaExample. Use uppercase keywords FUNCTION, IF/ELSE, FOR EACH, RETURN. Two-space indent. One step per line, mirroring the Lua control flow 1:1. Reference OpenMW concepts by name (e.g. 'REGISTER onActivated handler', 'FOR EACH actor IN nearby.actors').",
       "luaExample": "-- Working code with onSave/onLoad, events, interfaces",
       "docLink": "https://openmw.readthedocs.io/en/latest/reference/lua-scripting/..."
     }
@@ -5736,6 +5737,8 @@ Your responses must be valid JSON with this exact structure:
   "omwscriptsExample": "# ModName.omwscripts\\nGLOBAL: scripts/ModName/global.lua\\nPLAYER: scripts/ModName/player.lua",
   "tags": ["tag1", "tag2"]
 }
+
+MANDATORY: Whenever a hint contains "luaExample", it MUST also contain a "pseudocode" field that mirrors the Lua step-by-step in plain English (no Lua syntax, no 'local', no colons, no 'require'). The pseudocode is for non-Lua readers to understand the intent; the Lua is the real implementation. Keep them in sync — every branch, loop, event, and handler in the Lua must appear as a corresponding step in the pseudocode.
 
 ## Core Modules & Documented APIs:
 
