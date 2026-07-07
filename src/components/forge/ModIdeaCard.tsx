@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, ExternalLink, Copy, Check } from 'lucide-react';
+import { Share2, ChevronDown, ChevronUp, ExternalLink, Copy, Check } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ModIdeaCardProps {
   idea: ModIdea;
-  isSaved: boolean;
-  onSave: () => void;
-  onRemove: () => void;
 }
 
 const COMPLEXITY_COLORS: Record<string, string> = {
@@ -27,7 +24,7 @@ const COMPLEXITY_LABELS: Record<string, string> = {
   overhaul: 'Full Overhaul',
 };
 
-export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProps) {
+export function ModIdeaCard({ idea }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
@@ -73,21 +70,6 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
     }
   };
 
-  const handleSaveToggle = () => {
-    if (isSaved) {
-      onRemove();
-      toast({
-        title: "Removed from Forge",
-        description: "The idea has been removed from your saved collection.",
-      });
-    } else {
-      onSave();
-      toast({
-        title: "Saved to Forge",
-        description: "The idea has been added to your collection!",
-      });
-    }
-  };
 
   return (
     <Card className="medieval-border bg-card parchment-texture fade-in overflow-hidden">
@@ -222,28 +204,10 @@ export function ModIdeaCard({ idea, isSaved, onSave, onRemove }: ModIdeaCardProp
 
       <CardFooter className="pt-3 gap-2">
         <Button
-          variant={isSaved ? "default" : "outline"}
-          size="sm"
-          onClick={handleSaveToggle}
-          className="flex-1 font-display text-xs uppercase tracking-wider"
-        >
-          {isSaved ? (
-            <>
-              <BookmarkCheck className="mr-1.5 h-4 w-4" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Bookmark className="mr-1.5 h-4 w-4" />
-              Save to Forge
-            </>
-          )}
-        </Button>
-        <Button
           variant="outline"
           size="sm"
           onClick={handleShare}
-          className="font-display text-xs uppercase tracking-wider"
+          className="flex-1 font-display text-xs uppercase tracking-wider"
         >
           {copied ? (
             <Check className="h-4 w-4" />

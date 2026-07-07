@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand2, Scroll, BookOpen } from 'lucide-react';
+import { Wand2, BookOpen } from 'lucide-react';
 import { Header } from '@/components/forge/Header';
 import { GeneratorForm, GeneratorPrefill } from '@/components/forge/GeneratorForm';
 import { ModIdeaCard } from '@/components/forge/ModIdeaCard';
-import { SavedIdeasPanel } from '@/components/forge/SavedIdeasPanel';
 import { StoryForm } from '@/components/forge/StoryForm';
 import { StoryCard } from '@/components/forge/StoryCard';
-import { SavedStoriesPanel } from '@/components/forge/SavedStoriesPanel';
-import { useSavedIdeas } from '@/hooks/useSavedIdeas';
-import { useSavedStories } from '@/hooks/useSavedStories';
 import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData, Complexity } from '@/types/mod-idea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -22,15 +18,7 @@ export default function Index() {
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [activeTab, setActiveTab] = useState('generator');
   const [generatorPrefill, setGeneratorPrefill] = useState<GeneratorPrefill | null>(null);
-  const { savedIdeas, saveIdea, removeIdea, isIdeaSaved, clearAllIdeas } = useSavedIdeas();
-  const { savedStories, saveStory, removeStory, isStorySaved, clearAllStories } = useSavedStories();
   const { toast } = useToast();
-
-  const COMPLEXITY_MAP: Record<string, Complexity> = {
-    'short-tale': 'simple',
-    'multi-act-saga': 'quest-mod',
-    'epic-chronicle': 'overhaul',
-  };
 
   const handleConvertStoryToMod = (story: StoryEntry, selectedConnections: string[]) => {
     const actsCount = story.acts.length;
@@ -103,7 +91,7 @@ export default function Index() {
         <Header />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
             <TabsTrigger value="generator" className="font-display flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
               Generator
@@ -111,10 +99,6 @@ export default function Index() {
             <TabsTrigger value="storyboard" className="font-display flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Story Board
-            </TabsTrigger>
-            <TabsTrigger value="saved" className="font-display flex items-center gap-2">
-              <Scroll className="h-4 w-4" />
-              Saved ({savedIdeas.length + savedStories.length})
             </TabsTrigger>
           </TabsList>
 
@@ -141,12 +125,7 @@ export default function Index() {
                   Forged Creation
                 </h2>
                 {generatedIdea ? (
-                  <ModIdeaCard
-                    idea={generatedIdea}
-                    isSaved={isIdeaSaved(generatedIdea.id)}
-                    onSave={() => saveIdea(generatedIdea)}
-                    onRemove={() => removeIdea(generatedIdea.id)}
-                  />
+                  <ModIdeaCard idea={generatedIdea} />
                 ) : (
                   <Card className="medieval-border bg-card/50 parchment-texture">
                     <CardContent className="py-16 text-center">
@@ -188,9 +167,6 @@ export default function Index() {
                 {generatedStory ? (
                   <StoryCard
                     story={generatedStory}
-                    isSaved={isStorySaved(generatedStory.id)}
-                    onSave={() => saveStory(generatedStory)}
-                    onRemove={() => removeStory(generatedStory.id)}
                     onConvertToMod={handleConvertStoryToMod}
                     onRefine={handleRefineStory}
                     isRefining={isGeneratingStory}
@@ -210,22 +186,6 @@ export default function Index() {
                 )}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="saved" className="space-y-8">
-            <SavedIdeasPanel
-              ideas={savedIdeas}
-              onRemoveIdea={removeIdea}
-              onClearAll={clearAllIdeas}
-            />
-            <SavedStoriesPanel
-              stories={savedStories}
-              onRemoveStory={removeStory}
-              onClearAll={clearAllStories}
-              onConvertToMod={handleConvertStoryToMod}
-              onRefine={handleRefineStory}
-              isRefining={isGeneratingStory}
-            />
           </TabsContent>
         </Tabs>
       </div>

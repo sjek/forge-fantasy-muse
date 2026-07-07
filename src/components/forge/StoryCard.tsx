@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2 } from 'lucide-react';
+import { Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,9 +21,6 @@ const REFINEMENT_OPTIONS: Record<string, string[]> = {
 
 interface StoryCardProps {
   story: StoryEntry;
-  isSaved: boolean;
-  onSave: () => void;
-  onRemove: () => void;
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
   onRefine?: (story: StoryEntry, instruction: string) => void;
   isRefining?: boolean;
@@ -45,7 +42,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, onRefine, isRefining }: StoryCardProps) {
+export function StoryCard({ story, onConvertToMod, onRefine, isRefining }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
@@ -98,15 +95,6 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, on
     }
   };
 
-  const handleSaveToggle = () => {
-    if (isSaved) {
-      onRemove();
-      toast({ title: "Removed", description: "Story removed from your collection." });
-    } else {
-      onSave();
-      toast({ title: "Saved to Forge", description: "Story added to your collection!" });
-    }
-  };
 
   return (
     <Card className="medieval-border bg-card parchment-texture fade-in overflow-hidden">
@@ -357,19 +345,7 @@ export function StoryCard({ story, isSaved, onSave, onRemove, onConvertToMod, on
       </CardContent>
 
       <CardFooter className="pt-3 gap-2">
-        <Button
-          variant={isSaved ? "default" : "outline"}
-          size="sm"
-          onClick={handleSaveToggle}
-          className="flex-1 font-display text-xs uppercase tracking-wider"
-        >
-          {isSaved ? (
-            <><BookmarkCheck className="mr-1.5 h-4 w-4" />Saved</>
-          ) : (
-            <><Bookmark className="mr-1.5 h-4 w-4" />Save Story</>
-          )}
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleShare} className="font-display text-xs uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={handleShare} className="flex-1 font-display text-xs uppercase tracking-wider">
           {copied ? <Check className="h-4 w-4" /> : <><Share2 className="mr-1.5 h-4 w-4" />Share</>}
         </Button>
         {onConvertToMod && story.connections.length > 0 && (
