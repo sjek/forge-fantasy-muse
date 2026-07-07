@@ -1,43 +1,31 @@
-## Plan: Pair Pseudocode with Generated Lua
+## Plan: Remove Saving & Loading Logic
 
-### Overview
-For every `luaExample` produced in a mod idea's implementation hints, also generate a plain-language **pseudocode** version. Display it next to the Lua code so non-Lua modders can follow the logic, and coders get a clear intent spec beside the real syntax.
+Strip all persistence (localStorage) and "Saved" collection UI. Generated ideas/stories will exist only in the current session — no bookmarks, no saved tab, no export-from-collection panel.
 
-### Changes
+### Files to delete
+- `src/hooks/useLocalStorage.ts`
+- `src/hooks/useSavedIdeas.ts`
+- `src/hooks/useSavedStories.ts`
+- `src/components/forge/SavedIdeasPanel.tsx`
+- `src/components/forge/SavedStoriesPanel.tsx`
 
-#### 1. `src/types/mod-idea.ts`
-Extend `OpenMWHint`:
-```ts
-export interface OpenMWHint {
-  title: string;
-  description: string;
-  luaExample?: string;
-  pseudocode?: string;   // NEW — language-agnostic outline mirroring luaExample
-  docLink?: string;
-}
-```
+### Files to edit
 
-#### 2. `supabase/functions/generate-mod-idea/index.ts`
-- Update the JSON schema in the system prompt so each hint may include `pseudocode`.
-- Add an instruction: *"Whenever you provide `luaExample`, also provide a matching `pseudocode` field: numbered steps in plain English (no Lua syntax), 1:1 with the code's control flow. Reference OpenMW concepts by name (e.g., 'register onActivate handler', 'iterate nearby actors within 500 units')."*
-- Keep style consistent: `FUNCTION`, `IF/ELSE`, `FOR EACH`, `RETURN` uppercase keywords; indent with two spaces.
+**`src/pages/Index.tsx`**
+- Remove imports of the deleted hooks/panels.
+- Remove `useSavedIdeas` / `useSavedStories` calls and the `saved` `TabsTrigger` + `TabsContent`.
+- Drop `isSaved`/`onSave`/`onRemove` props passed to `ModIdeaCard` and `StoryCard` (pass no-ops or update card APIs — see below).
 
-#### 3. `src/components/forge/ModIdeaCard.tsx`
-Inside the hint block, when `hint.pseudocode` exists, render a second panel above the Lua panel:
-- Header label "Pseudocode" with copy button (reuse `handleCopyCode` pattern, add `copiedPseudoIndex` state).
-- Same visual styling as the Lua block but with a distinct muted background and no `Lua` tag — label reads `Pseudocode`.
-- Both panels stack vertically: Pseudocode first (intent), Lua second (implementation).
+**`src/components/forge/ModIdeaCard.tsx`**
+- Remove `isSaved`, `onSave`, `onRemove` from props.
+- Remove `handleSaveToggle` and the Save/Saved button in the footer.
 
-#### 4. Story board (optional, same turn)
-`StoryCard.tsx` doesn't show code, so no changes there. Skip.
+**`src/components/forge/StoryCard.tsx`**
+- Same treatment: remove `isSaved`, `onSave`, `onRemove` props, `handleSaveToggle`, and the Save Story button.
 
-### File Summary
-| File | Change |
-|---|---|
-| `src/types/mod-idea.ts` | Add `pseudocode?: string` to `OpenMWHint` |
-| `supabase/functions/generate-mod-idea/index.ts` | Require pseudocode alongside every luaExample in prompt/schema |
-| `src/components/forge/ModIdeaCard.tsx` | Render pseudocode panel above Lua panel with copy button |
+### What stays
+- Generation flows (mod idea + story), refinement, convert-to-mod, copy buttons, and in-card export/download actions if present on the card itself.
+- The two main tabs (Generator / Story Board). Only the "Saved" tab is removed.
 
-### Notes
-- Existing saved ideas without `pseudocode` degrade gracefully (panel simply hidden).
-- No backend/schema/storage changes — hints are stored inside the idea JSON in local storage.
+### Memory update
+- Update `mem://constraints/local-storage-only` to reflect that persistence has been removed — session-only state now.
