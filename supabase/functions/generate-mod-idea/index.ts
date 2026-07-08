@@ -5584,11 +5584,6 @@ ${categoryContext}
 local hudElement = nil
 local stopTimer = nil
 
-local function onLoad(savedData, initData)  -- MUST have both parameters
-  if savedData and savedData.version == 1 then
-    state = savedData.myData
-  end
-end
 
 local function onActive()
   -- Create HUD here (survives save/load)
