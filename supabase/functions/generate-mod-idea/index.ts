@@ -25,10 +25,10 @@ local world = require('openmw.world')
 local core = require('openmw.core')
 
 local currentStage = 0
--- NOTE: Cannot access openmw.nearby here (may be inactive)
--- savedData = what onSave returned; initData = what was passed to script creation
+
 return {
   engineHandlers = { },
+
   eventHandlers = {
     MyMod_QuestProgress = function(data)
       -- Handle event from local script
