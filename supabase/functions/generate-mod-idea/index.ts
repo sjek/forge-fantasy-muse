@@ -5654,10 +5654,11 @@ end
 ## CRITICAL Requirements:
 1. **Script Context**: ALWAYS specify which script context (Global/Local/Player) each code belongs to
 2. **Events**: Use core.sendGlobalEvent for Local→Global, object:sendEvent for Global→Local or Local→Local
-4. **Lifecycle**: Use onActive for HUD/timer initialization, onInactive for cleanup
-5. **Interfaces**: Use openmw.interfaces for AI control, combat checks, camera/controls
-6. **Timers**: Use async:registerTimerCallback for save-safe timers; clean up in onInactive
-7. **File Structure**: Include .omwscripts file showing script registration
+3. **Lifecycle**: Use onActive for HUD/timer initialization, onInactive for cleanup
+4. **Interfaces**: Use openmw.interfaces for AI control, combat checks, camera/controls
+5. **Timers**: Use async:registerTimerCallback for save-safe timers; clean up in onInactive
+6. **File Structure**: Include .omwscripts file showing script registration
+7. **No persistence**: Do NOT use onSave/onLoad. Generated mods are session-only; state resets on save/load.
 
 ## .omwscripts Example Patterns:
 \`\`\`
