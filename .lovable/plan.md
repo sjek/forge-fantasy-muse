@@ -1,31 +1,27 @@
-## Plan: Remove Saving & Loading Logic
+## Plan: Remove onSave / onLoad persistence logic from generated mods
 
-Strip all persistence (localStorage) and "Saved" collection UI. Generated ideas/stories will exist only in the current session — no bookmarks, no saved tab, no export-from-collection panel.
+Strip all references to OpenMW's `onSave` / `onLoad` engine handlers from the mod-idea generation prompts and templates. Generated scripts will no longer include save-game persistence — state resets each session, matching the app's own no-persistence stance.
 
-### Files to delete
-- `src/hooks/useLocalStorage.ts`
-- `src/hooks/useSavedIdeas.ts`
-- `src/hooks/useSavedStories.ts`
-- `src/components/forge/SavedIdeasPanel.tsx`
-- `src/components/forge/SavedStoriesPanel.tsx`
+### Scope
+
+Only the `generate-mod-idea` edge function contains these references (found in ~80 locations across code snippets, guidance sections, and rule lists). No frontend code, story-generation function, or types reference `onSave`/`onLoad`.
 
 ### Files to edit
 
-**`src/pages/Index.tsx`**
-- Remove imports of the deleted hooks/panels.
-- Remove `useSavedIdeas` / `useSavedStories` calls and the `saved` `TabsTrigger` + `TabsContent`.
-- Drop `isSaved`/`onSave`/`onRemove` props passed to `ModIdeaCard` and `StoryCard` (pass no-ops or update card APIs — see below).
-
-**`src/components/forge/ModIdeaCard.tsx`**
-- Remove `isSaved`, `onSave`, `onRemove` from props.
-- Remove `handleSaveToggle` and the Save/Saved button in the footer.
-
-**`src/components/forge/StoryCard.tsx`**
-- Same treatment: remove `isSaved`, `onSave`, `onRemove` props, `handleSaveToggle`, and the Save Story button.
-
-### What stays
-- Generation flows (mod idea + story), refinement, convert-to-mod, copy buttons, and in-card export/download actions if present on the card itself.
-- The two main tabs (Generator / Story Board). Only the "Saved" tab is removed.
+**`supabase/functions/generate-mod-idea/index.ts`**
+- Remove every `local function onSave() ... end` and `local function onLoad(savedData, initData) ... end` block from example Lua snippets.
+- Remove `onSave = onSave,` and `onLoad = onLoad,` entries from `engineHandlers = { ... }` tables (and inline `onSave = function() ... end` / `onLoad = function(...) ... end` entries).
+- Remove commentary lines that explain onSave/onLoad usage (e.g. "-- onSave: Return state to persist", "-- onLoad: Accepts (savedData, initData)").
+- Remove onSave/onLoad items from the prompt's rules, requirements, best-practices, and "common mistakes" lists (e.g. "Include onSave/onLoad for state persistence", "Using onLoad(data) instead of onLoad(savedData, initData)").
+- Update the example luaExample descriptor string that mentions onSave/onLoad.
+- Leave `onInit`, `onActive`, `onInactive`, `onUpdate`, and all other engine handlers untouched.
 
 ### Memory update
-- Update `mem://constraints/local-storage-only` to reflect that persistence has been removed — session-only state now.
+
+- Update `mem://constraints/openmw-lifecycle-state-machine-rules` to state that generated mods must NOT use `onSave`/`onLoad`; state is session-only.
+- Update `mem://index.md` Core line about lifecycle to reflect the removal.
+
+### What stays
+
+- All other OpenMW generation logic: lifecycle handlers (`onInit`, `onActive`, `onInactive`, `onUpdate`), interfaces, events, UI templates, animation/sound patterns, API package prioritization, and every non-persistence rule.
+- Deploy the updated edge function after edits.
