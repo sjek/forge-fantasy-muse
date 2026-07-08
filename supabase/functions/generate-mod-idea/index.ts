@@ -25,23 +25,10 @@ local world = require('openmw.world')
 local core = require('openmw.core')
 
 local currentStage = 0
-
--- onSave: Called when game is saved. Return data to persist.
 -- NOTE: Cannot access openmw.nearby here (may be inactive)
-local function onSave()
-  return { version = 1, questStage = currentStage }
-end
-
--- onLoad: Called when game is loaded. Receives savedData AND initData.
 -- savedData = what onSave returned; initData = what was passed to script creation
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then 
-    currentStage = savedData.questStage 
-  end
-end
-
 return {
-  engineHandlers = { onSave = onSave, onLoad = onLoad },
+  engineHandlers = { },
   eventHandlers = {
     MyMod_QuestProgress = function(data)
       -- Handle event from local script
@@ -80,18 +67,6 @@ local function onActivated(actor)
   end
 end
 
--- onSave: Cannot access openmw.nearby here (script may be inactive)
-local function onSave() 
-  return { version = 1, state = state } 
-end
-
--- onLoad: Accepts both savedData and initData parameters
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    state = savedData.state 
-  end 
-end
-
 -- onActive: Called every time script becomes active (including after save load)
 -- Use for starting timers, accessing nearby, session initialization
 local function onActive()
@@ -115,8 +90,6 @@ end
 return {
   engineHandlers = {
     onActivated = onActivated,
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -640,25 +613,8 @@ local function advanceQuest()
   end
 end
 
--- onSave: Return state to persist. Cannot access openmw.nearby here.
-local function onSave()
-  return { 
-    version = 1, 
-    state = questState 
-  }
-end
-
--- onLoad: Accepts (savedData, initData). savedData is from onSave.
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then
-    questState = savedData.state
-  end
-end
-
 return {
   engineHandlers = { 
-    onSave = onSave, 
-    onLoad = onLoad 
   },
   eventHandlers = {
     MyMod_ObjectiveComplete = function(data)
@@ -784,22 +740,9 @@ local function onNewGame()
 end
 
 -- Reset flag on load so we know it's not a new game
-local function onLoad(savedData, initData)
-  if savedData then
-    gameState = savedData
-  end
-  gameState.isNewGame = false
-end
-
-local function onSave()
-  return gameState
-end
-
 return {
   engineHandlers = { 
     onNewGame = onNewGame,
-    onSave = onSave,
-    onLoad = onLoad,
   },
 }`
       },
@@ -1064,21 +1007,9 @@ local function onActivated(actor)
   end
 end
 
-local function onSave()
-  return { version = 1, count = activationCount }
-end
-
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then
-    activationCount = savedData.count
-  end
-end
-
 return {
   engineHandlers = { 
     onActivated = onActivated,
-    onSave = onSave,
-    onLoad = onLoad,
   },
 }`
       },
@@ -1171,21 +1102,9 @@ local function onConsume(item)
   end
 end
 
-local function onSave()
-  return { version = 1, consumed = consumedItems }
-end
-
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then
-    consumedItems = savedData.consumed
-  end
-end
-
 return {
   engineHandlers = { 
     onConsume = onConsume,
-    onSave = onSave,
-    onLoad = onLoad,
   },
 }`
       },
@@ -1917,21 +1836,6 @@ local function onAnimationTextKey(groupname, key)
   end
 end
 
-local function onSave()
-  return { 
-    version = 1, 
-    state = currentState, 
-    prevState = previousState 
-  }
-end
-
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then
-    currentState = savedData.state or STATE.IDLE
-    previousState = savedData.prevState
-  end
-end
-
 local function onActive()
   -- Restore animation state
   transitionTo(currentState, {})
@@ -1947,8 +1851,6 @@ end
 return {
   engineHandlers = {
     onAnimationTextKey = onAnimationTextKey,
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -2199,16 +2101,6 @@ local function stopAllMusic()
   musicState.currentContext = nil
 end
 
-local function onSave()
-  return { version = 1, music = musicState }
-end
-
-local function onLoad(savedData, initData)
-  if savedData and savedData.version == 1 then
-    musicState = savedData.music
-  end
-end
-
 -- Restore music on script activation
 local function onActive()
   if musicState.currentTrack then
@@ -2222,8 +2114,6 @@ end
 
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -3585,18 +3475,6 @@ local time = require('openmw_aux.time')
 local activeEffects = {}
 local stopEffectCheck = nil
 
--- onSave: Cannot access openmw.nearby here
-local function onSave() 
-  return { version = 1, effects = activeEffects } 
-end
-
--- onLoad: Accepts (savedData, initData)
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    activeEffects = savedData.effects 
-  end 
-end
-
 -- onActive: Start periodic checks when script becomes active
 local function onActive()
   stopEffectCheck = time.runRepeatedly(function()
@@ -3625,8 +3503,6 @@ end
 
 return {
   engineHandlers = { 
-    onSave = onSave, 
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -3641,20 +3517,8 @@ local core = require('openmw.core')
 
 local spellRegistry = {}
 
--- onSave: Return state to persist
-local function onSave() 
-  return { version = 1, registry = spellRegistry } 
-end
-
--- onLoad: Accepts (savedData, initData)
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    spellRegistry = savedData.registry 
-  end 
-end
-
 return {
-  engineHandlers = { onSave = onSave, onLoad = onLoad },
+  engineHandlers = { },
   eventHandlers = {
     MagicMod_Amplified = function(data)
       -- Create visual effect at actor location
@@ -3730,18 +3594,6 @@ local function checkSchedule()
   end
 end
 
--- onSave: Cannot access openmw.nearby here
-local function onSave() 
-  return { version = 1, schedule = schedule } 
-end
-
--- onLoad: Accepts (savedData, initData)
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    schedule = savedData.schedule 
-  end 
-end
-
 -- onActive: Start schedule timer when script becomes active
 local function onActive()
   stopScheduleCheck = time.runRepeatedly(checkSchedule, time.hour * 0.5, { type = time.GameTime })
@@ -3757,8 +3609,6 @@ end
 
 return {
   engineHandlers = { 
-    onSave = onSave, 
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -3780,22 +3630,8 @@ local world = require('openmw.world')
 local core = require('openmw.core')
 
 local factionState = {}
-
--- onSave/onLoad: Proper persistence with version checking
-local function onSave() 
-  return { version = 1, factions = factionState } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    factionState = savedData.factions 
-  end 
-end
-
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
   },
   eventHandlers = {
     NPCMod_ActivityChange = function(data)
@@ -3828,7 +3664,6 @@ return {
       "core.sendGlobalEvent - Trigger world events",
       "object:sendEvent - Notify specific objects",
       "async:registerTimerCallback - Delayed quest stages",
-      "onSave/onLoad - Persist quest state"
     ],
     examples: [
       {
@@ -3869,13 +3704,6 @@ local delayedStageCallback = async:registerTimerCallback('quest_next_stage',
 
 return {
   engineHandlers = {
-    -- onSave/onLoad with proper signature
-    onSave = function() return { version = 1, quest = questState } end,
-    onLoad = function(savedData, initData)
-      if savedData and savedData.version == 1 then
-        questState = savedData.quest
-      end
-    end,
   },
   eventHandlers = {
     QuestMod_ObjectiveComplete = function(data)
@@ -3933,13 +3761,6 @@ end
 return {
   engineHandlers = {
     onActivated = onActivated,
-    -- onSave/onLoad with proper signatures
-    onSave = function() return { version = 1, triggered = triggered } end,
-    onLoad = function(savedData, initData) 
-      if savedData and savedData.version == 1 then 
-        triggered = savedData.triggered 
-      end 
-    end,
   },
 }`
       }
@@ -4138,18 +3959,6 @@ local function checkPassiveEffect()
     end
   end
 end
-
--- onSave/onLoad with proper signatures
-local function onSave() 
-  return { version = 1, charge = chargeState } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    chargeState = savedData.charge 
-  end 
-end
-
 -- onActive: Start timer when script becomes active
 local function onActive()
   stopPassiveCheck = time.runRepeatedly(checkPassiveEffect, time.second * 5, { type = time.SimulationTime })
@@ -4165,8 +3974,6 @@ end
 
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -4624,16 +4431,6 @@ local function updateMusicState()
   end
 end
 
-local function onSave() 
-  return { version = 1, music = musicState } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    musicState = savedData.music 
-  end 
-end
-
 local function onActive()
   -- Restore music if we had one playing
   if musicState.currentFile then
@@ -4651,8 +4448,6 @@ end
 
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -4873,22 +4668,8 @@ local function updateWeather()
 end
 
 local stopWeatherUpdate = nil
-
--- onSave/onLoad with proper signatures
-local function onSave() 
-  return { version = 1, weather = weatherState } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    weatherState = savedData.weather 
-  end 
-end
-
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
   },
   eventHandlers = {
     WeatherMod_TriggerEvent = function(data)
@@ -4936,23 +4717,8 @@ end
 
 local lastRegion = nil
 local stopRegionCheck = nil
-
--- onSave/onLoad with proper signatures
-local function onSave() 
-  return { version = 1, regions = regionState, lastRegion = lastRegion } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    regionState = savedData.regions or {}
-    lastRegion = savedData.lastRegion
-  end 
-end
-
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
   },
 }`
       }
@@ -5157,15 +4923,6 @@ return {
     end,
   },
   engineHandlers = {
-    -- onLoad with proper signature for migration handling
-    onLoad = function(savedData, initData)
-      -- Migration from old save format if needed
-      if savedData and savedData.version == 0 then
-        for k, v in pairs(savedData.settings or {}) do
-          modSettings:set(k, v)
-        end
-      end
-    end,
   },
 }`
       },
@@ -5335,18 +5092,6 @@ local function updateDetection()
 end
 
 local stopDetectionCheck = nil
-
--- onSave/onLoad with proper signatures
-local function onSave() 
-  return { version = 1, detection = detectionState } 
-end
-
-local function onLoad(savedData, initData) 
-  if savedData and savedData.version == 1 then 
-    detectionState = savedData.detection 
-  end 
-end
-
 -- onActive: Start detection timer when script becomes active
 local function onActive()
   stopDetectionCheck = time.runRepeatedly(updateDetection, time.second, { type = time.SimulationTime })
@@ -5362,8 +5107,6 @@ end
 
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -5730,7 +5473,7 @@ Your responses must be valid JSON with this exact structure:
       "scriptContext": "global|local|player",
       "description": "How to implement with proper script context",
       "pseudocode": "Plain-language, language-agnostic outline of the same logic as luaExample. Use uppercase keywords FUNCTION, IF/ELSE, FOR EACH, RETURN. Two-space indent. One step per line, mirroring the Lua control flow 1:1. Reference OpenMW concepts by name (e.g. 'REGISTER onActivated handler', 'FOR EACH actor IN nearby.actors').",
-      "luaExample": "-- Working code with onSave/onLoad, events, interfaces",
+      "luaExample": "-- Working code with events, interfaces, lifecycle",
       "docLink": "https://openmw.readthedocs.io/en/latest/reference/lua-scripting/..."
     }
   ],
@@ -5835,17 +5578,11 @@ ${categoryContext}
 - **onInit**: Called ONCE when script is first created (not after save/load). Use only for one-time creation setup that doesn't need to survive saves.
 - **onActive**: Called every time script becomes active (including after save load). Use for HUD creation, starting timers, session initialization. This is where most initialization should happen.
 - **onInactive**: Called when script becomes inactive. MUST clean up timers (call stop functions) and destroy UI elements. CANNOT access openmw.nearby here.
-- **onSave**: Called during save. Return data to persist. CANNOT access openmw.nearby (script may be inactive). Always include version number for migrations.
-- **onLoad**: Called on load. MUST accept (savedData, initData) parameters. savedData is from onSave; initData is from script creation.
 
 ### Correct lifecycle pattern:
 \`\`\`lua
 local hudElement = nil
 local stopTimer = nil
-
-local function onSave()
-  return { version = 1, myData = state }  -- Always version your save data
-end
 
 local function onLoad(savedData, initData)  -- MUST have both parameters
   if savedData and savedData.version == 1 then
@@ -5868,8 +5605,6 @@ end
 
 return {
   engineHandlers = {
-    onSave = onSave,
-    onLoad = onLoad,
     onActive = onActive,
     onInactive = onInactive,
   },
@@ -5878,9 +5613,7 @@ return {
 
 ### Common mistakes to AVOID:
 - Using onInit for HUD creation (won't survive save/load - use onActive instead)
-- Using onLoad(data) instead of onLoad(savedData, initData)
 - Not cleaning up timers in onInactive (causes resource leaks)
-- Accessing openmw.nearby in onSave or onInactive (will error)
 - Starting timers at module level instead of in onActive
 
 ## openmw.ui - UI Creation API (Player/Menu Scripts Only)
@@ -5926,8 +5659,7 @@ end
 ## CRITICAL Requirements:
 1. **Script Context**: ALWAYS specify which script context (Global/Local/Player) each code belongs to
 2. **Events**: Use core.sendGlobalEvent for Local→Global, object:sendEvent for Global→Local or Local→Local
-3. **Persistence**: Include onSave/onLoad handlers for any stateful scripts
-4. **Lifecycle**: Use onActive for HUD/timer initialization, onInactive for cleanup, onLoad with proper (savedData, initData) signature
+4. **Lifecycle**: Use onActive for HUD/timer initialization, onInactive for cleanup
 5. **Interfaces**: Use openmw.interfaces for AI control, combat checks, camera/controls
 6. **Timers**: Use async:registerTimerCallback for save-safe timers; clean up in onInactive
 7. **File Structure**: Include .omwscripts file showing script registration
@@ -6029,7 +5761,6 @@ Surprise me with an unexpected, lore-friendly concept that would fit in Morrowin
 IMPORTANT:
 - Specify which script context (Global/Local/Player) each code example belongs to
 - Show how scripts communicate via events (core.sendGlobalEvent, object:sendEvent)
-- Include onSave/onLoad for state persistence
 - Include a complete .omwscripts file example${apiPackageInstructions}${interfaceInstructions}`;
     } else {
       const themeContext = getRelevantTemplates(selectedThemes);
@@ -6043,7 +5774,6 @@ ${customNotes ? `Additional inspiration/notes from the user: ${customNotes}` : '
 CRITICAL REQUIREMENTS:
 - Each implementation hint MUST specify its scriptContext: "global", "local", or "player"
 - Show proper event communication between scripts
-- Include onSave/onLoad handlers for persistent state
 - Use openmw.interfaces where appropriate (AI, Combat, etc.)
 - Include a complete .omwscripts example showing file registration
 - For complex mods, show the communication flow between script types${apiPackageInstructions}${interfaceInstructions}`;
