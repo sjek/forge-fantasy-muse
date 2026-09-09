@@ -27,21 +27,18 @@ const COMPLEXITY_LABELS: Record<string, string> = {
 export function ModIdeaCard({ idea }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
   const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const handleCopyCode = async (code: string, index: number, kind: 'lua' | 'pseudo' = 'lua') => {
+  const handleCopyCode = async (code: string, index: number) => {
     try {
       await copyToClipboard(code);
-      if (kind === 'lua') setCopiedHintIndex(index); else setCopiedPseudoIndex(index);
+      setCopiedPseudoIndex(index);
       toast({
-        title: kind === 'lua' ? "Code Copied" : "Pseudocode Copied",
-        description: kind === 'lua' ? "Lua code copied to clipboard!" : "Pseudocode copied to clipboard!",
+        title: "Pseudocode Copied",
+        description: "Pseudocode copied to clipboard!",
       });
-      setTimeout(() => {
-        if (kind === 'lua') setCopiedHintIndex(null); else setCopiedPseudoIndex(null);
-      }, 2000);
+      setTimeout(() => setCopiedPseudoIndex(null), 2000);
     } catch (err) {
       toast({
         title: "Copy Failed",
@@ -137,7 +134,7 @@ export function ModIdeaCard({ idea }: ModIdeaCardProps) {
                         variant="ghost"
                         size="sm"
                         className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => handleCopyCode(hint.pseudocode!, idx, 'pseudo')}
+                        onClick={() => handleCopyCode(hint.pseudocode!, idx)}
                       >
                         {copiedPseudoIndex === idx ? (
                           <>
@@ -154,34 +151,6 @@ export function ModIdeaCard({ idea }: ModIdeaCardProps) {
                     </div>
                     <pre className="bg-background/60 p-3 text-xs font-mono text-foreground/90 overflow-x-auto whitespace-pre-wrap">
                       <code>{hint.pseudocode}</code>
-                    </pre>
-                  </div>
-                )}
-                {hint.luaExample && (
-                  <div className="mt-2 rounded-md overflow-hidden border border-border/50">
-                    <div className="flex items-center justify-between bg-secondary/80 px-3 py-1.5">
-                      <span className="text-xs font-mono text-muted-foreground">Lua</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => handleCopyCode(hint.luaExample!, idx)}
-                      >
-                        {copiedHintIndex === idx ? (
-                          <>
-                            <Check className="h-3 w-3 mr-1 text-forest" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3 mr-1" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <pre className="bg-background/80 p-3 text-xs font-mono text-foreground overflow-x-auto">
-                      <code>{hint.luaExample}</code>
                     </pre>
                   </div>
                 )}
