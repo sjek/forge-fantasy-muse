@@ -27,21 +27,18 @@ const COMPLEXITY_LABELS: Record<string, string> = {
 export function ModIdeaCard({ idea }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedHintIndex, setCopiedHintIndex] = useState<number | null>(null);
   const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const handleCopyCode = async (code: string, index: number, kind: 'lua' | 'pseudo' = 'lua') => {
+  const handleCopyCode = async (code: string, index: number) => {
     try {
       await copyToClipboard(code);
-      if (kind === 'lua') setCopiedHintIndex(index); else setCopiedPseudoIndex(index);
+      setCopiedPseudoIndex(index);
       toast({
-        title: kind === 'lua' ? "Code Copied" : "Pseudocode Copied",
-        description: kind === 'lua' ? "Lua code copied to clipboard!" : "Pseudocode copied to clipboard!",
+        title: "Pseudocode Copied",
+        description: "Pseudocode copied to clipboard!",
       });
-      setTimeout(() => {
-        if (kind === 'lua') setCopiedHintIndex(null); else setCopiedPseudoIndex(null);
-      }, 2000);
+      setTimeout(() => setCopiedPseudoIndex(null), 2000);
     } catch (err) {
       toast({
         title: "Copy Failed",
