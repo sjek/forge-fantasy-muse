@@ -5,8 +5,8 @@ export function exportAsText(ideas: ModIdea[]): string {
     const features = idea.features.map((f, i) => `  ${i + 1}. ${f}`).join('\n');
     const hints = idea.implementationHints.map((h) => {
       let hint = `  • ${h.title}: ${h.description}`;
-      if (h.luaExample) {
-        hint += `\n    Lua: ${h.luaExample}`;
+      if (h.pseudocode) {
+        hint += `\n    Pseudocode:\n${h.pseudocode.split('\n').map((l) => `      ${l}`).join('\n')}`;
       }
       if (h.docLink) {
         hint += `\n    Docs: ${h.docLink}`;

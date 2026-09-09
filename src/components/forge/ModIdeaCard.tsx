@@ -157,34 +157,6 @@ export function ModIdeaCard({ idea }: ModIdeaCardProps) {
                     </pre>
                   </div>
                 )}
-                {hint.luaExample && (
-                  <div className="mt-2 rounded-md overflow-hidden border border-border/50">
-                    <div className="flex items-center justify-between bg-secondary/80 px-3 py-1.5">
-                      <span className="text-xs font-mono text-muted-foreground">Lua</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => handleCopyCode(hint.luaExample!, idx)}
-                      >
-                        {copiedHintIndex === idx ? (
-                          <>
-                            <Check className="h-3 w-3 mr-1 text-forest" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3 mr-1" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <pre className="bg-background/80 p-3 text-xs font-mono text-foreground overflow-x-auto">
-                      <code>{hint.luaExample}</code>
-                    </pre>
-                  </div>
-                )}
                 {hint.docLink && (
                   <a
                     href={hint.docLink}

@@ -91,7 +91,7 @@ export interface ModIdea {
 export interface OpenMWHint {
   title: string;
   description: string;
-  luaExample?: string;
+  
   pseudocode?: string;
   docLink?: string;
 }
