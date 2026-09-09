@@ -134,7 +134,7 @@ export function ModIdeaCard({ idea }: ModIdeaCardProps) {
                         variant="ghost"
                         size="sm"
                         className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => handleCopyCode(hint.pseudocode!, idx, 'pseudo')}
+                        onClick={() => handleCopyCode(hint.pseudocode!, idx)}
                       >
                         {copiedPseudoIndex === idx ? (
                           <>
