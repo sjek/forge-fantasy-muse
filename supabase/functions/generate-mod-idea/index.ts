@@ -5460,7 +5460,7 @@ function buildSystemPrompt(themes: string[]): string {
     }
   }
 
-  return `You are a creative mod idea generator for OpenMW (Morrowind). Generate unique, immersive, and lore-friendly mod ideas with REAL, WORKING OpenMW Lua code examples that use proper script contexts, interfaces, and events.
+  return `You are a creative mod idea generator for OpenMW (Morrowind). Generate unique, immersive, and lore-friendly mod ideas explained as PLAIN-LANGUAGE PSEUDOCODE that reflects real OpenMW script contexts, interfaces, events and APIs. Do NOT output Lua source code.
 
 Your responses must be valid JSON with this exact structure:
 {
@@ -5472,8 +5472,7 @@ Your responses must be valid JSON with this exact structure:
       "title": "Implementation aspect title",
       "scriptContext": "global|local|player",
       "description": "How to implement with proper script context",
-      "pseudocode": "Plain-language, language-agnostic outline of the same logic as luaExample. Use uppercase keywords FUNCTION, IF/ELSE, FOR EACH, RETURN. Two-space indent. One step per line, mirroring the Lua control flow 1:1. Reference OpenMW concepts by name (e.g. 'REGISTER onActivated handler', 'FOR EACH actor IN nearby.actors').",
-      "luaExample": "-- Working code with events, interfaces, lifecycle",
+      "pseudocode": "Plain-language, language-agnostic outline of the logic. Use uppercase keywords FUNCTION, IF/ELSE, FOR EACH, RETURN. Two-space indent. One step per line. Reference OpenMW concepts by name (e.g. 'REGISTER onActivated handler', 'FOR EACH actor IN nearby.actors').",
       "docLink": "https://openmw.readthedocs.io/en/latest/reference/lua-scripting/..."
     }
   ],
@@ -5481,7 +5480,8 @@ Your responses must be valid JSON with this exact structure:
   "tags": ["tag1", "tag2"]
 }
 
-MANDATORY: Whenever a hint contains "luaExample", it MUST also contain a "pseudocode" field that mirrors the Lua step-by-step in plain English (no Lua syntax, no 'local', no colons, no 'require'). The pseudocode is for non-Lua readers to understand the intent; the Lua is the real implementation. Keep them in sync — every branch, loop, event, and handler in the Lua must appear as a corresponding step in the pseudocode.
+MANDATORY: Every hint MUST contain a "pseudocode" field and MUST NOT contain a "luaExample" field or any Lua syntax (no 'local', no 'require', no colon method calls, no 'end'). The internal Lua reference material below exists only so your pseudocode names real OpenMW handlers, modules and interfaces correctly — translate it into plain-language steps.
+
 
 ## Core Modules & Documented APIs:
 
