@@ -162,7 +162,13 @@ export default function Index() {
                   Forged Creation
                 </h2>
                 {generatedIdea ? (
-                  <ModIdeaCard idea={generatedIdea} />
+                  <ModIdeaCard
+                    idea={generatedIdea}
+                    onSave={handleSaveIdea}
+                    onRemove={handleRemoveIdea}
+                    isSaved={isIdeaSaved(generatedIdea)}
+                  />
+
                 ) : (
                   <Card className="medieval-border bg-card/50 parchment-texture">
                     <CardContent className="py-16 text-center">
@@ -207,6 +213,9 @@ export default function Index() {
                     onConvertToMod={handleConvertStoryToMod}
                     onRefine={handleRefineStory}
                     isRefining={isGeneratingStory}
+                    onSave={handleSaveStory}
+                    onRemove={handleRemoveStory}
+                    isSaved={isStorySaved(generatedStory)}
                   />
                 ) : (
                   <Card className="medieval-border bg-card/50 parchment-texture">
@@ -223,6 +232,18 @@ export default function Index() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="saved" className="space-y-8">
+            <SavedPanel
+              savedIdeas={savedIdeas}
+              savedStories={savedStories}
+              onRemoveIdea={handleRemoveIdea}
+              onRemoveStory={handleRemoveStory}
+              onConvertToMod={handleConvertStoryToMod}
+              buildBackup={buildBackup}
+              importBackup={importBackup}
+            />
           </TabsContent>
         </Tabs>
       </div>
