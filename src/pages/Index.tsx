@@ -128,7 +128,7 @@ export default function Index() {
         <Header />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-xl mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="generator" className="font-display flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
               Generator
@@ -136,6 +136,10 @@ export default function Index() {
             <TabsTrigger value="storyboard" className="font-display flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Story Board
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="font-display flex items-center gap-2">
+              <Archive className="h-4 w-4" />
+              Saved ({savedIdeas.length + savedStories.length})
             </TabsTrigger>
           </TabsList>
 
