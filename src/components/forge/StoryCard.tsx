@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2 } from 'lucide-react';
+import { Share2, ChevronDown, ChevronUp, Users, ScrollText, Link2, Copy, Check, Wand2, Lightbulb, AlignLeft, Sparkles, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,9 @@ interface StoryCardProps {
   onConvertToMod?: (story: StoryEntry, selectedConnections: string[]) => void;
   onRefine?: (story: StoryEntry, instruction: string) => void;
   isRefining?: boolean;
+  onSave?: (story: StoryEntry) => void;
+  onRemove?: (story: StoryEntry) => void;
+  isSaved?: boolean;
 }
 
 const TONE_COLORS: Record<string, string> = {
@@ -42,7 +45,7 @@ const STORY_TYPE_LABELS: Record<string, string> = {
   'faction-history': '🏛️ Faction History',
 };
 
-export function StoryCard({ story, onConvertToMod, onRefine, isRefining }: StoryCardProps) {
+export function StoryCard({ story, onConvertToMod, onRefine, isRefining, onSave, onRemove, isSaved }: StoryCardProps) {
   const [isActsOpen, setIsActsOpen] = useState(false);
   const [isCharsOpen, setIsCharsOpen] = useState(false);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);

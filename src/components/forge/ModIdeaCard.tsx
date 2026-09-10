@@ -27,7 +27,7 @@ const COMPLEXITY_LABELS: Record<string, string> = {
   overhaul: 'Full Overhaul',
 };
 
-export function ModIdeaCard({ idea }: ModIdeaCardProps) {
+export function ModIdeaCard({ idea, onSave, onRemove, isSaved }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
