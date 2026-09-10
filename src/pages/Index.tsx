@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand2, BookOpen } from 'lucide-react';
+import { Wand2, BookOpen, Archive } from 'lucide-react';
 import { Header } from '@/components/forge/Header';
 import { GeneratorForm, GeneratorPrefill } from '@/components/forge/GeneratorForm';
 import { ModIdeaCard } from '@/components/forge/ModIdeaCard';
 import { StoryForm } from '@/components/forge/StoryForm';
 import { StoryCard } from '@/components/forge/StoryCard';
+import { SavedPanel } from '@/components/forge/SavedPanel';
 import { ModIdea, GeneratorFormData, StoryEntry, StoryFormData, Complexity } from '@/types/mod-idea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSavedItems } from '@/hooks/useSavedItems';
 
 export default function Index() {
   const [generatedIdea, setGeneratedIdea] = useState<ModIdea | null>(null);
@@ -19,6 +21,41 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState('generator');
   const [generatorPrefill, setGeneratorPrefill] = useState<GeneratorPrefill | null>(null);
   const { toast } = useToast();
+  const {
+    savedIdeas,
+    savedStories,
+    saveIdea,
+    removeIdea,
+    saveStory,
+    removeStory,
+    isIdeaSaved,
+    isStorySaved,
+    buildBackup,
+    importBackup,
+  } = useSavedItems();
+
+  const handleSaveIdea = (idea: ModIdea) => {
+    const stored = saveIdea(idea);
+    setGeneratedIdea(stored);
+    toast({ title: 'Idea Saved', description: `"${stored.title}" is now in your archive.` });
+  };
+
+  const handleRemoveIdea = (idea: ModIdea) => {
+    removeIdea(idea.id);
+    toast({ title: 'Idea Removed', description: `"${idea.title}" was removed from your archive.` });
+  };
+
+  const handleSaveStory = (story: StoryEntry) => {
+    const stored = saveStory(story);
+    setGeneratedStory(stored);
+    toast({ title: 'Story Saved', description: `"${stored.title}" is now in your archive.` });
+  };
+
+  const handleRemoveStory = (story: StoryEntry) => {
+    removeStory(story.id);
+    toast({ title: 'Story Removed', description: `"${story.title}" was removed from your archive.` });
+  };
+
 
   const handleConvertStoryToMod = (story: StoryEntry, selectedConnections: string[]) => {
     const actsCount = story.acts.length;
