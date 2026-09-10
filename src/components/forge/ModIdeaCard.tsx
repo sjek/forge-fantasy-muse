@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Share2, ChevronDown, ChevronUp, ExternalLink, Copy, Check } from 'lucide-react';
+import { Share2, ChevronDown, ChevronUp, ExternalLink, Copy, Check, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ModIdeaCardProps {
   idea: ModIdea;
+  onSave?: (idea: ModIdea) => void;
+  onRemove?: (idea: ModIdea) => void;
+  isSaved?: boolean;
 }
 
 const COMPLEXITY_COLORS: Record<string, string> = {
@@ -24,7 +27,7 @@ const COMPLEXITY_LABELS: Record<string, string> = {
   overhaul: 'Full Overhaul',
 };
 
-export function ModIdeaCard({ idea }: ModIdeaCardProps) {
+export function ModIdeaCard({ idea, onSave, onRemove, isSaved }: ModIdeaCardProps) {
   const [isHintsOpen, setIsHintsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedPseudoIndex, setCopiedPseudoIndex] = useState<number | null>(null);
@@ -187,6 +190,28 @@ export function ModIdeaCard({ idea }: ModIdeaCardProps) {
             </>
           )}
         </Button>
+        {onSave && !isSaved && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSave(idea)}
+            className="font-display text-xs uppercase tracking-wider"
+          >
+            <Bookmark className="mr-1.5 h-4 w-4" />
+            Save
+          </Button>
+        )}
+        {isSaved && onRemove && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onRemove(idea)}
+            className="font-display text-xs uppercase tracking-wider text-burgundy"
+          >
+            <BookmarkCheck className="mr-1.5 h-4 w-4" />
+            Saved
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

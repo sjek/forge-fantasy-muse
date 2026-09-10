@@ -1,4 +1,4 @@
-import { ModIdea } from '@/types/mod-idea';
+import { ModIdea, StoryEntry } from '@/types/mod-idea';
 
 export function exportAsText(ideas: ModIdea[]): string {
   return ideas.map((idea) => {
@@ -36,6 +36,26 @@ ${hints}
 
 export function exportAsJSON(ideas: ModIdea[]): string {
   return JSON.stringify(ideas, null, 2);
+}
+
+export interface ParsedBackup {
+  version: number;
+  exportedAt: string;
+  ideas: ModIdea[];
+  stories: StoryEntry[];
+}
+
+export function parseBackup(text: string): ParsedBackup {
+  const data = JSON.parse(text);
+  if (!data || typeof data !== 'object' || (!Array.isArray(data.ideas) && !Array.isArray(data.stories))) {
+    throw new Error('This file is not a Fantasy Mod Forge backup.');
+  }
+  return {
+    version: typeof data.version === 'number' ? data.version : 1,
+    exportedAt: typeof data.exportedAt === 'string' ? data.exportedAt : new Date().toISOString(),
+    ideas: Array.isArray(data.ideas) ? data.ideas : [],
+    stories: Array.isArray(data.stories) ? data.stories : [],
+  };
 }
 
 export function downloadFile(content: string, filename: string, mimeType: string) {
