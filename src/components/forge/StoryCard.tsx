@@ -356,6 +356,16 @@ export function StoryCard({ story, onConvertToMod, onRefine, isRefining, onSave,
             <Wand2 className="mr-1.5 h-4 w-4" />Mod
           </Button>
         )}
+        {onSave && !isSaved && (
+          <Button variant="outline" size="sm" onClick={() => onSave(story)} className="font-display text-xs uppercase tracking-wider">
+            <Bookmark className="mr-1.5 h-4 w-4" />Save
+          </Button>
+        )}
+        {isSaved && onRemove && (
+          <Button variant="outline" size="sm" onClick={() => onRemove(story)} className="font-display text-xs uppercase tracking-wider text-burgundy">
+            <BookmarkCheck className="mr-1.5 h-4 w-4" />Saved
+          </Button>
+        )}
       </CardFooter>
 
       {/* Convert to Mod Dialog */}
