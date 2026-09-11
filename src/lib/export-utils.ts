@@ -45,6 +45,33 @@ export interface ParsedBackup {
   stories: StoryEntry[];
 }
 
+const arr = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+/** Fills in any missing fields so a hand-edited or older backup can never break rendering. */
+function normalizeIdea(raw: any): ModIdea {
+  return {
+    ...raw,
+    features: arr<string>(raw?.features),
+    implementationHints: arr<any>(raw?.implementationHints),
+    tags: arr<any>(raw?.tags),
+  } as ModIdea;
+}
+
+function normalizeStory(raw: any): StoryEntry {
+  return {
+    ...raw,
+    acts: arr<any>(raw?.acts).map((act: any) => ({
+      title: act?.title ?? 'Untitled Act',
+      description: act?.description ?? '',
+      keyEvents: arr<string>(act?.keyEvents),
+    })),
+    characters: arr<any>(raw?.characters),
+    loreNotes: arr<string>(raw?.loreNotes),
+    connections: arr<string>(raw?.connections),
+    themes: arr<any>(raw?.themes),
+  } as StoryEntry;
+}
+
 export function parseBackup(text: string): ParsedBackup {
   const data = JSON.parse(text);
   if (!data || typeof data !== 'object' || (!Array.isArray(data.ideas) && !Array.isArray(data.stories))) {
@@ -53,8 +80,8 @@ export function parseBackup(text: string): ParsedBackup {
   return {
     version: typeof data.version === 'number' ? data.version : 1,
     exportedAt: typeof data.exportedAt === 'string' ? data.exportedAt : new Date().toISOString(),
-    ideas: Array.isArray(data.ideas) ? data.ideas : [],
-    stories: Array.isArray(data.stories) ? data.stories : [],
+    ideas: arr<any>(data.ideas).map(normalizeIdea),
+    stories: arr<any>(data.stories).map(normalizeStory),
   };
 }
 
