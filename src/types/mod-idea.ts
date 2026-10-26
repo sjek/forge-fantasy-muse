@@ -140,6 +140,11 @@ export interface StoryEntry {
   keyPoints?: string[];
 }
 
+export interface ModListItem {
+  name: string;
+  summary: string;
+}
+
 export interface StoryFormData {
   storyType: StoryType;
   themes: ThemeTag[];

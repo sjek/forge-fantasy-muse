@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wand2, BookOpen, Archive } from 'lucide-react';
+import { Wand2, BookOpen, Archive, List } from 'lucide-react';
+import { ModListPanel } from '@/components/forge/ModListPanel';
 import { Header } from '@/components/forge/Header';
 import { GeneratorForm, GeneratorPrefill } from '@/components/forge/GeneratorForm';
 import { ModIdeaCard } from '@/components/forge/ModIdeaCard';
@@ -128,7 +129,7 @@ export default function Index() {
         <Header />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-xl mx-auto grid-cols-3 mb-8">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-8">
             <TabsTrigger value="generator" className="font-display flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
               Generator
@@ -140,6 +141,10 @@ export default function Index() {
             <TabsTrigger value="saved" className="font-display flex items-center gap-2">
               <Archive className="h-4 w-4" />
               Saved ({savedIdeas.length + savedStories.length})
+            </TabsTrigger>
+            <TabsTrigger value="modlist" className="font-display flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Mod List
             </TabsTrigger>
           </TabsList>
 
@@ -236,6 +241,10 @@ export default function Index() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="modlist" className="space-y-8">
+            <ModListPanel />
           </TabsContent>
 
           <TabsContent value="saved" className="space-y-8">
