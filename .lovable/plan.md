@@ -1,27 +1,18 @@
-# Fourth tab: Nexus Mods Search
+# Fourth tab: Mod List
 
 ## What you get
-A new **"Nexus Search"** tab next to Saved. Type a search (e.g. "combat", "UI", "0.49"), press Search, and see a list of Morrowind mods from Nexus Mods that need OpenMW. Each result shows:
-- Mod name, linked to its Nexus page
-- Short AI summary (2-3 sentences) of what it does
-- OpenMW version needed, if the page says so
-- A few tags (combat, UI, quests, etc.)
+A new **"Mod List"** tab next to Saved, kept simple:
+- One text box for a topic (e.g. "combat", "UI", "quests"), an optional count (5 / 10 / 15), and a **Generate List** button.
+- Results appear as a plain numbered list: **mod name** plus a 1-2 sentence summary of what it contains.
+- A **Copy List** button copies everything as text.
+- Results reset on reload (not saved), like other generated output.
 
-Above the list, a short **overview summary** describes common patterns across the results.
+No extra service or setup needed; it uses the built-in AI.
 
-Optional filter: minimum OpenMW version (Any / 0.48 / 0.49 / 0.50 / 0.51+).
-
-Results are not saved; they reset on page reload, like other generated output.
-
-## Setup needed
-Web search uses the **Firecrawl** service. A connect card will appear for you to approve. Summaries use the built-in AI, so no extra key.
+Note: the AI lists Morrowind/OpenMW mods it knows about. Names and summaries may be outdated or imperfect, so a small note under the list says to check Nexus Mods before relying on them.
 
 ## Technical details
-- Connect Firecrawl connector; read `uses_connector_gateway` and use the matching call pattern.
-- New edge function `search-nexus-mods`:
-  - Input: `{ query, minVersion? }`, validated.
-  - Firecrawl `/search` with `site:nexusmods.com/morrowind/mods openmw <query>`, limit ~10, scrape markdown.
-  - Send trimmed page text to Lovable AI (`google/gemini-3-flash-preview`) with tool-calling schema returning `{ overview, mods: [{ title, url, summary, openmwVersion, tags[] }] }`; drop non-OpenMW results; filter by minVersion.
-  - Return provider status/body on errors; handle 429/402 from AI.
-- Frontend: new `src/components/forge/NexusSearchPanel.tsx` (parchment-styled cards, loading state, empty state), add 4th tab in `Index.tsx` (grid-cols-4, Search icon).
-- Types `NexusModResult`, `NexusSearchResponse` in `src/types/mod-idea.ts`.
+- New edge function `generate-mod-list`: input `{ topic, count }` validated (topic 1-100 chars, count 5-15). Calls Lovable AI Gateway (default model, Responses API, strict json_schema) returning `{ mods: [{ name, summary }] }`. Surfaces 402/429 errors with readable messages.
+- New `src/components/forge/ModListPanel.tsx` in parchment styling.
+- `Index.tsx`: add 4th tab (grid-cols-4, List icon).
+- Types `ModListItem` in `src/types/mod-idea.ts`.
